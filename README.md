@@ -3,10 +3,11 @@
 Flutter/Android implementation of the Asite **Field Capture** prototype — offline-first 360°
 site progress monitoring.
 
-**Phase 4 of 6 complete.** Every screen in the prototype is now built except the 3D
-perspective view — sign in, projects, calibrations, the Level Workspace, the capture flows,
-site issues, the upload queue and settings. See [`ASSUMPTIONS.md`](ASSUMPTIONS.md) for
-everything the prototype does not specify, and [`BUILD.md`](BUILD.md) to run it.
+**Phase 5 of 6 complete. Every screen in the prototype is built.** All ten routes resolve to
+a real screen; no placeholders remain. See [`ASSUMPTIONS.md`](ASSUMPTIONS.md) for everything
+the prototype does not specify, and [`BUILD.md`](BUILD.md) to run it.
+
+Phase 6 is QA and the release APK — nothing here has been compiled yet.
 
 ---
 
@@ -72,10 +73,13 @@ to one SDK version. Cards are styled by `core/widgets/app_card.dart` instead.
 | 18 | Report an issue | Built — chips, optional photo, pin step with centre fallback |
 | 19 | Upload queue | Built — all five item states, derived summary, retry, Wi-Fi policy |
 | 20 | Settings | Built — camera card, quality chips, upload and storage policy |
-| 14–16 | 3D Perspective | Placeholder — Phase 5 |
+| 13 | 3D · pick a trajectory | Built — walk list, no-model and no-walks states |
+| 14 | 3D · walk the trajectory | Built — perspective render, scrub, yaw, mini plan |
+| 15 | 3D · compare slider | Built — draggable wipe, viewpoint preserved |
 
-Every route resolves to something, so navigation is never a dead end. Each placeholder names
-the prototype pages it will implement and the phase that delivers it.
+All ten routes were declared in `app_router.dart` on day one. The ones not yet built resolved
+to a placeholder naming the phase that would deliver them, so no navigation path was ever a
+dead end and each phase only swapped a builder. As of Phase 5 there are no placeholders left.
 
 ### Exercising the states
 
@@ -125,7 +129,7 @@ lib/
 │   ├── issues/              raise, list and inspect site issues
 │   ├── uploads/             the queue captures land in
 │   ├── settings/            camera pairing, capture quality, upload policy
-│   └── placeholders/        stands in for phase 5
+│   └── perspective/         the 3D view — camera, renderer, scrub, compare
 ├── app.dart                 theme + router only
 └── main.dart                bootstrap only
 ```
@@ -227,13 +231,33 @@ The same principle covers grid references: an issue stores a plan-space point, n
 `B-2` is computed at render time, which is what the deck means by "derived from the pin, not
 typed by the user".
 
+## The 3D view, and what it actually is
+
+There is no model. The deck never states the model's source, format or size, so rather than
+guess a dependency, the 3D view renders **the plan extruded to wall height** through a small
+perspective renderer written for this project — near-plane clipping in camera space,
+painter's-algorithm depth sorting, distance fog. No 3D engine, no new package.
+
+The plan is the only spatial data the app holds, so walls land where the plan says walls are
+and walking a trajectory passes the right rooms in the right order. That makes every
+interaction in the deck real and reviewable today: the scrub, the yaw, the mini plan with its
+heading cone, the compare wipe. `ModelPerspectiveSource` marks the production path and
+`ModelPainter` already switches on it — swapping in a real renderer touches that one file.
+
+The camera maths and the walk sampling are pure functions and both are covered by
+`test/perspective_test.dart`, including the near-plane clip that a hand-check caught: a
+clipped point lands exactly *on* the plane, so the projection guard has to admit it or every
+wall you stand beside disappears.
+
 ## Next
 
-Phase 5 — the 3D perspective view: the trajectory picker, scrubbing along a recorded walk at
-eye height, and the Compare wipe between the design model and captured imagery.
+Phase 6 — QA and release: screen-by-screen comparison against the deck, Android back-navigation
+audit at every mode and sheet, the 48 px touch-target audit, responsive checks, signing
+configuration and a release APK.
 
-It starts with a spike rather than a screen, because the deck never states the model source,
-format, or size, and never draws a loading, failure or no-model state (`ASSUMPTIONS.md` §B7).
+**Nothing in this project has been compiled.** `flutter analyze` is the first thing Phase 6
+should run.
 
 Still open and worth an answer: §F3 (the deck's grid references do not match its own pins),
-§G9 (the Image and Mobile capture flow order) and §G10 (the partial-walk save path).
+§G9 (the Image and Mobile capture flow order), §G10 (the partial-walk save path) and §I1
+(the 3D model format).

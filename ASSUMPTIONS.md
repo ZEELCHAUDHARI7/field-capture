@@ -175,7 +175,7 @@ camera-loss state. Background survival is promised with no UI.
 "A partial walk can still be saved — data beats a clean model." The path is described but never
 drawn, and *Discard* has no confirmation dialog despite being destructive.
 
-### C12 · Compare pane source — `MED` · `ASSUMED` (Phase 5)
+### C12 · Compare pane source — `MED` · `RESOLVED` (see §I6)
 The right pane is labelled `LIVE CAMERA` but the body copy says "captured imagery". These are
 different implementations.
 
@@ -466,6 +466,70 @@ two undrawn states have a real source, and it is why raising an issue never need
 The PDF cuts off mid-way through "Auto-delete local files". Everything visible is built; the
 section list is left open. No account section, sign-out or app version is drawn anywhere in
 the deck, so none was invented.
+
+---
+
+## I. Phase 5 — the 3D perspective view
+
+### I1 · There is no model, and no format to load one — `HIGH` · `ASSUMED` (extends §B7)
+The deck never states the model's source, format or size, never draws a loading or failure
+state, and never draws the "this level has no model" case its own copy implies.
+
+**Assumed — the plan, extruded.** `ExtrudedPlanSource` renders the calibration's own plan
+geometry pulled up to wall height, through a small perspective renderer written for this
+project: near-plane clipping in camera space, painter's-algorithm depth sorting, distance fog.
+No 3D engine and no new dependency.
+
+**Why not add one.** Adding `three_dart`, `flutter_gl` or `model_viewer_plus` before knowing
+whether the model is IFC, glTF, a point cloud or server-rendered tiles would commit the project
+to the wrong dependency, and none of it could be verified — this build has never compiled.
+
+**What this buys.** The plan is the only spatial data the app holds, so walls land where the
+plan says walls are and walking a trajectory passes the right rooms in the right order. Every
+interaction in the deck — scrub, yaw, mini plan, compare wipe — is real and reviewable now.
+`ModelPerspectiveSource` is the marker for the real path; the painter already switches on it.
+
+**Cost to change:** contained to `ModelPainter` and the source type. Nothing else in the app
+knows how the view is drawn.
+
+### I2 · Eye height, wall height and field of view — `LOW` · `ASSUMED`
+None are stated. Eye height 1.6 m, wall height 2.8 m (slab to soffit), 70° horizontal field of
+view — a plausible phone-camera framing. All three are named constants.
+
+### I3 · The deck's own two lengths disagree — `MED` · `ASSUMED`
+The walk is labelled "23 m", but its three pins are about **13 m** apart in straight lines.
+
+**Assumed: both are right.** A real walk is not straight between waypoints, so the recorded
+track is legitimately longer than the polyline through its pins. Scrubbing is therefore a
+**fraction**: it drives position along the polyline, and the same fraction times the recorded
+length is what the user is shown — which is how "8 m of 23 m" stays honest.
+
+### I4 · "Rotate the phone to look" is not wired to a sensor — `MED` · `ASSUMED`
+The hint pill says "Rotate the phone to look — drag to simulate", so the deck already names
+drag as the fallback.
+
+**Assumed:** drag only. No `sensors_plus`, no gyroscope. A full-width drag turns about 160°,
+which keeps fine aim possible without endless swiping. Wiring the gyroscope later changes
+`PerspectiveController.turnBy` and nothing else.
+
+### I5 · "+ Define new trajectory" still has no flow — `LOW` · `OPEN`
+Drawn on the picker with no destination and no described behaviour anywhere in the deck.
+Defining a path without walking it is a different feature from everything else in this app.
+It reports that plainly rather than opening a half-guessed editor.
+
+### I6 · The Compare panes — `MED` · `ASSUMED` (resolves §C12)
+The right pane is labelled `LIVE CAMERA` but the body copy says "captured imagery at the same
+viewpoint". Those are different sources.
+
+**Assumed: captured imagery**, and the pane is labelled as such internally. The prototype's
+label is treated as shorthand — a live camera feed cannot show what a walk recorded last week,
+which is the whole point of comparing. The pane shows the capture placeholder, since no 360°
+frames exist yet.
+
+### I7 · A raster plan has nothing to extrude — `LOW` · `OPEN`
+If the plan source becomes `RasterPlanSource` (decision D3) before a real model exists, the 3D
+view has no geometry and draws floor only. That is a real consequence of D3 worth knowing
+about: the two decisions interact, and resolving §B7 resolves it.
 
 ---
 

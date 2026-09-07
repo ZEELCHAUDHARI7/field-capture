@@ -6,18 +6,20 @@ import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/calibrations/screens/calibration_list_screen.dart';
 import '../../features/capture/screens/mobile_capture_screen.dart';
 import '../../features/capture/screens/recording_screen.dart';
-import '../../features/placeholders/placeholder_screen.dart';
-import '../../features/settings/screens/settings_screen.dart';
-import '../../features/uploads/screens/upload_queue_screen.dart';
+import '../../features/perspective/screens/perspective_walk_screen.dart';
+import '../../features/perspective/screens/trajectory_picker_screen.dart';
 import '../../features/plan/screens/level_workspace_screen.dart';
 import '../../features/projects/screens/project_list_screen.dart';
+import '../../features/settings/screens/settings_screen.dart';
+import '../../features/uploads/screens/upload_queue_screen.dart';
 import 'routes.dart';
 
 /// The app router.
 ///
-/// All ten routes are declared here from day one. Seven resolve to a
-/// PlaceholderScreen naming the phase that will build them, so no navigation
-/// path in the app is a dead end and later phases only swap a builder.
+/// All ten routes, every one now backed by a real screen. They were declared
+/// here from day one — the seven that were not yet built resolved to a
+/// placeholder naming the phase that would deliver them, so no navigation path
+/// in the app was ever a dead end and each phase only swapped a builder.
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: Routes.signIn,
@@ -40,10 +42,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // ---------------------------------------------------------------------
-      // Phase 2 onwards. Declared now so links resolve and the shape of the
-      // app is visible in one file.
-      // ---------------------------------------------------------------------
       GoRoute(
         path: Routes.workspace,
         builder: (BuildContext context, GoRouterState state) =>
@@ -74,27 +72,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.perspective,
         builder: (BuildContext context, GoRouterState state) =>
-            const PlaceholderScreen(
-          title: '3D Perspective',
-          subtitle: 'Movement bound to trajectories',
-          phase: 'Phase 5',
-          prototypePages: 'p. 14',
-          summary: 'Pick a recorded walk to fly. Held back deliberately: the '
-              'prototype never states the model source or format, so this '
-              'phase starts with a spike rather than a screen.',
+            TrajectoryPickerScreen(
+          calibrationId: state.pathParameters['calibrationId'] ?? '',
         ),
       ),
       GoRoute(
         path: Routes.perspectiveWalk,
         builder: (BuildContext context, GoRouterState state) =>
-            const PlaceholderScreen(
-          title: '3D Perspective',
-          subtitle: 'Walk the trajectory',
-          phase: 'Phase 5',
-          prototypePages: 'pp. 15–16',
-          summary: 'Scrub along the recorded walk at eye height, with the mini '
-              'plan for orientation and a draggable Compare wipe between the '
-              'design model and the captured imagery.',
+            PerspectiveWalkScreen(
+          calibrationId: state.pathParameters['calibrationId'] ?? '',
+          trajectoryId: state.pathParameters['trajectoryId'] ?? '',
         ),
       ),
     ],
