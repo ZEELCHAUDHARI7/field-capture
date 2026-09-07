@@ -1,0 +1,57 @@
+name: field_capture
+description: Asite Field Capture - offline-first 360 site progress monitoring.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management. Chosen because connectivity and camera session state are
+  # read by 9 screens each; constructor-passing them would be unmaintainable.
+  flutter_riverpod: ^2.4.0
+
+  # Declarative routing. Keeps the plan-view pin modes as screen state rather
+  # than forcing them to become routes.
+  go_router: ^14.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+# No other packages in Phase 1. See rule 9 in the project brief: nothing is added
+# until a screen genuinely needs it. Deliberately NOT added yet:
+#   intl            - formatters.dart covers Phase 1 needs with zero dependency
+#   google_fonts    - requires runtime network; Inter is bundled instead (below)
+#   drift / isar    - no persistence requirement until Phase 3
+#   freezed         - build_runner friction with no payoff while models are mock
+
+flutter:
+  uses-material-design: true
+
+  # ---------------------------------------------------------------------------
+  # FONTS - ACTION REQUIRED BEFORE THE UI MATCHES THE PROTOTYPE
+  #
+  # The prototype is set in Inter. Inter is not bundled here because this
+  # session has no network access to fetch the TTFs. Until they are added the
+  # app falls back to Roboto, which is metrically close but visibly different.
+  #
+  # To fix: download Inter from https://fonts.google.com/specimen/Inter,
+  # drop the four static TTFs into assets/fonts/, then uncomment this block
+  # and set AppTypography.sansFamily = 'Inter' in lib/core/theme/app_typography.dart.
+  # ---------------------------------------------------------------------------
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700

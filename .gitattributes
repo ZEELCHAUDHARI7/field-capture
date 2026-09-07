@@ -1,0 +1,29 @@
+# Normalise line endings so the repo is identical on every machine.
+#
+# Without this, a Windows checkout with core.autocrlf=true and a Linux or macOS
+# checkout disagree on every line of every file, and the first `git status` on
+# the second laptop shows the whole project as modified.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF or they will not run.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binary — never touched, never diffed as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.ttf  binary
+*.otf  binary
+*.woff binary
+*.woff2 binary
+*.jar  binary
+*.keystore binary
+*.jks  binary
+
+# Generated — collapse it in diffs and hide it from language stats.
+pubspec.lock linguist-generated=true
