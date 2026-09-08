@@ -81,6 +81,26 @@ All ten routes were declared in `app_router.dart` on day one. The ones not yet b
 to a placeholder naming the phase that would deliver them, so no navigation path was ever a
 dead end and each phase only swapped a builder. As of Phase 5 there are no placeholders left.
 
+### The dead ends, and what happened to them
+
+Six controls were reported as answering a tap with nothing useful. Two of the six turned out to
+be fully wired already — camera reconnect runs `CameraLostCard → reconnect() → busy → paired`,
+and the queue's pause, resume and retry all reach real controller methods. Four were real:
+
+| Control | Was | Now |
+|---|---|---|
+| Image capture | Pin, then saved instantly — no screen at all | `CapturePhase.shooting` and a framing screen with a shutter (§C7) |
+| Issue photo buttons | Both called the same no-op; neither could be undone | The draft records which button attached it, tapping it again removes it, and the 360° button is refused while the camera is gone (§H2) |
+| Scan for 360° cameras | Snackbar | A scan → list → pair sheet (§C14) |
+| + Define new trajectory | Snackbar | Rendered as unavailable, with the reason on the control (§I5) |
+
+The last one is the odd one out, and deliberately so. A control that reads as live until you
+press it is worse than one that reads as unavailable: the first gets tapped in a demo, the
+second does not. The deck's layout is kept; only the affordance changes. The line above it no
+longer offers to "define a new path" either.
+
+Nothing in the demo path now answers a tap with an apology.
+
 ### Exercising the states — the demo console
 
 **Settings → Demo controls.**
@@ -128,7 +148,7 @@ lib/
 ├── core/                    shared across every feature
 │   ├── constants/           spacing, radii, the 48px touch-target floor
 │   ├── theme/               colours, typography, ThemeData
-│   ├── routing/             all 10 routes, declared up front
+│   ├── routing/             the 10 prototype routes + 2 added in Phase 6
 │   ├── utils/               formatters (bytes, dates, elapsed, percent)
 │   └── widgets/             the shared widget kit
 ├── shared/

@@ -51,6 +51,10 @@ enum CapturePhase {
   /// The phone-native four-step guided sweep.
   mobileSweep,
 
+  /// A 360° still is framed and shot. The deck names Image on the dock but
+  /// draws no shooting step for it — ASSUMPTIONS.md §G9.
+  shooting,
+
   /// Writing to the local store and the upload queue.
   saving;
 

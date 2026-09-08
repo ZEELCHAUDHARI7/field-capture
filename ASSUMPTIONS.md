@@ -154,9 +154,16 @@ the deck — `OPEN`.
 **Proposed:** reuse the pin mode with a *Skip* action falling back to plan centre. Needs a
 decision before Phase 4.
 
-### C7 · "Image" capture has no post-naming screens — `HIGH` · `OPEN` (Phase 3)
+### C7 · "Image" capture has no post-naming screens — `HIGH` · `ASSUMED` (Phase 6)
 The naming sheet says "360° image — you will set one capture point", so a still is
 pin → shoot → save with no walk. The shooting state is undrawn.
+
+**Assumed:** the shoot step exists rather than being skipped. Image previously went straight
+from the pin to saved, so a mode named on the deck's own capture dock had no screen behind it.
+`CapturePhase.shooting` and `ImageCaptureScreen` add the smallest step the deck does not
+contradict: the framing preview it already draws for the other two modes, the capture's name,
+and a shutter. A still comes from the camera, so the screen refuses when the camera is gone —
+the same rule the dock applies.
 
 ### C8 · Mobile Capture — 3 of 4 steps undrawn — `MED` · `ASSUMED`
 Four step dots are drawn but only "Sweep up — floor to ceiling" is shown, and the
@@ -188,9 +195,17 @@ Pause is drawn; cancel and remove are not. No clear-completed. Cellular upload i
 an explicit opt-in but the opt-in dialog is undrawn. Items are not grouped despite the header
 saying "uploads to the same calibration".
 
-### C14 · Camera pairing sub-flow — `LOW` · `OPEN` (Phase 4)
+### C14 · Camera pairing sub-flow — `LOW` · `ASSUMED` (Phase 6)
 *Scan for 360° cameras* is a button to nowhere. *Forget Camera* is destructive with no
-confirmation.
+confirmation (the confirmation was added under §H5).
+
+**Assumed:** discovery is scan → list → pair. `CameraScanSheet` implements that shape with a
+timer and the one camera `CameraSessionController` already describes; nothing touches Wi-Fi and
+no Ricoh SDK is linked. Pairing is the first thing a crew does with this app, so it is worth
+showing rather than apologising for. Only that file changes when real discovery lands.
+
+Note: the source comment on this button previously cited §H5, which is the destructive-actions
+entry. Corrected to §C14.
 
 ### C15 · "+ Define new trajectory" — `LOW` · `DEFERRED` (Phase 5)
 Present on the 3D picker with no destination and no described flow.
@@ -417,12 +432,17 @@ Back returns to the sheet with the title intact rather than discarding the repor
 This is the reading that requires inventing least. If Asite intends the pin to be mandatory,
 the change is one line — disable the confirm until `draft.pin != null`.
 
-### H2 · Neither photo button has a capture flow — `MED` · `OPEN`
+### H2 · Neither photo button has a capture flow — `MED` · `ASSUMED`
 "Phone photo" and "360° camera still" are drawn as two dashed buttons. Nothing describes what
 either opens, and there is no camera integration.
 
-**Assumed:** both record that a photo is attached and the button turns solid green. No camera
-is opened. When the real capture lands, the two buttons diverge — one to the phone camera, one
+**Assumed:** the draft records *which* button attached the photo, and tapping the attached
+source again removes it. No camera is opened. Both buttons previously called the same no-op, so
+once tapped they were indistinguishable and neither could be undone. The 360° button is also
+refused while the camera is disconnected, with the reason on the control rather than in a toast
+after the tap — a still comes from the camera, the same rule the capture dock applies.
+
+When the real capture lands, the two buttons diverge — one to the phone camera, one
 to the paired 360° camera — and only `attachPhoto()` changes.
 
 ### H3 · Cellular upload opt-in is never drawn — `LOW` · `ASSUMED`
@@ -515,8 +535,14 @@ drag as the fallback.
 which keeps fine aim possible without endless swiping. Wiring the gyroscope later changes
 `PerspectiveController.turnBy` and nothing else.
 
-### I5 · "+ Define new trajectory" still has no flow — `LOW` · `OPEN`
+### I5 · "+ Define new trajectory" still has no flow — `LOW` · `ASSUMED`
 Drawn on the picker with no destination and no described behaviour anywhere in the deck.
+
+**Assumed:** it is drawn but not live. It previously answered a tap with a snackbar, which is
+the worst of both — it reads as available right up until you press it. It now renders as
+unavailable with the reason on the control, which keeps the deck's layout and stops it being
+tapped at all. The intro line above it no longer offers to "define a new path" either. One
+answered question turns this back into a button.
 Defining a path without walking it is a different feature from everything else in this app.
 It reports that plainly rather than opening a half-guessed editor.
 

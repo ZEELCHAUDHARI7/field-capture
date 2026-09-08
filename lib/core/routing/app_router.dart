@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/calibrations/screens/calibration_list_screen.dart';
+import '../../features/capture/screens/image_capture_screen.dart';
 import '../../features/capture/screens/mobile_capture_screen.dart';
 import '../../features/capture/screens/recording_screen.dart';
 import '../../features/demo/screens/demo_controls_screen.dart';
@@ -17,10 +18,13 @@ import 'routes.dart';
 
 /// The app router.
 ///
-/// All ten routes, every one now backed by a real screen. They were declared
-/// here from day one — the seven that were not yet built resolved to a
-/// placeholder naming the phase that would deliver them, so no navigation path
-/// in the app was ever a dead end and each phase only swapped a builder.
+/// The ten prototype routes, every one backed by a real screen, plus the two
+/// Phase 6 additions the deck does not draw: the Image shutter (§C7) and the
+/// demo console (see the README).
+///
+/// The ten were declared here from day one — the seven not yet built resolved
+/// to a placeholder naming the phase that would deliver them, so no navigation
+/// path in the app was ever a dead end and each phase only swapped a builder.
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: Routes.signIn,
@@ -59,6 +63,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: Routes.captureMobile,
         builder: (BuildContext context, GoRouterState state) =>
             const MobileCaptureScreen(),
+      ),
+      GoRoute(
+        path: Routes.captureImage,
+        builder: (BuildContext context, GoRouterState state) =>
+            const ImageCaptureScreen(),
       ),
       GoRoute(
         path: Routes.uploads,

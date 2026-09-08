@@ -100,7 +100,7 @@ class _Body extends StatelessWidget {
       children: <Widget>[
         Text(
           'This is not free roam — pick a captured trajectory to walk it in '
-          'the model at eye height, or define a new path.',
+          'the model at eye height.',
           style: theme.textTheme.bodyLarge
               ?.copyWith(color: AppColors.onChromeMuted),
         ),
@@ -115,24 +115,11 @@ class _Body extends StatelessWidget {
           const SizedBox(height: AppSizes.cardGap),
         ],
         const SizedBox(height: AppSizes.xs),
-        _DefineNewTrajectory(onTap: () => _notYet(context)),
+        const _DefineNewTrajectory(),
       ],
     );
   }
 
-  /// "+ Define new trajectory" is drawn with no destination and no described
-  /// flow anywhere in the deck. ASSUMPTIONS.md §I5.
-  void _notYet(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Defining a path without walking it is not specified yet.',
-          ),
-        ),
-      );
-  }
 }
 
 class _TrajectoryRow extends StatelessWidget {
@@ -210,34 +197,54 @@ class _TrajectoryRow extends StatelessWidget {
   }
 }
 
+/// Drawn, but not live.
+///
+/// The deck puts this button on the page and describes no flow behind it
+/// anywhere (ASSUMPTIONS.md §I5). It used to answer a tap with a snackbar,
+/// which is the worst of both: it reads as available right up until you press
+/// it. Rendering it as unavailable, with the reason on the control, keeps the
+/// deck's layout and stops it being tapped at all.
 class _DefineNewTrajectory extends StatelessWidget {
-  const _DefineNewTrajectory({required this.onTap});
-
-  final VoidCallback onTap;
+  const _DefineNewTrajectory();
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppSizes.radiusCard),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSizes.radiusCard),
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppSizes.radiusCard),
-            border: Border.all(color: AppColors.capturePillBorder),
-          ),
-          child: Container(
-            height: 56,
-            alignment: Alignment.center,
-            child: Text(
-              '+ Define new trajectory',
-              style: Theme.of(context)
-                  .textTheme
-                  .labelLarge
-                  ?.copyWith(color: AppColors.onChrome),
-            ),
+    final Color muted = AppColors.alpha(AppColors.onChrome, 0.38);
+
+    return Semantics(
+      button: true,
+      enabled: false,
+      label: '+ Define new trajectory, needs a path editor',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+          border: Border.all(color: AppColors.alpha(
+            AppColors.capturePillBorder,
+            0.6,
+          )),
+        ),
+        child: Container(
+          height: 56,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                '+ Define new trajectory',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(color: muted),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Needs a path editor — walk a recorded trajectory instead',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: muted, fontSize: 11),
+              ),
+            ],
           ),
         ),
       ),

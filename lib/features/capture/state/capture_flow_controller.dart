@@ -125,11 +125,23 @@ class CaptureFlowController extends Notifier<CaptureFlow> {
         );
         _startSweep();
       case CaptureMode.image:
-        // A 360° still is pin, shoot, save — the prototype draws no shooting
-        // screen for it. ASSUMPTIONS.md §C7 is still open.
-        state = CaptureFlow(phase: CapturePhase.saving, draft: placed);
-        unawaited(_commit());
+        state = CaptureFlow(
+          phase: CapturePhase.shooting,
+          draft: placed.copyWith(startedAt: DateTime.now()),
+        );
     }
+  }
+
+  /// The shutter on the Image screen.
+  ///
+  /// Image used to go straight from the pin to saved, so the mode named on the
+  /// deck's own dock had no screen behind it. The deck draws no shooting step,
+  /// so this is the smallest honest one: frame, shoot, save. ASSUMPTIONS.md §G9.
+  void captureStill() {
+    final CaptureDraft? draft = state.draft;
+    if (draft == null || state.phase != CapturePhase.shooting) return;
+    state = CaptureFlow(phase: CapturePhase.saving, draft: draft);
+    unawaited(_commit());
   }
 
   /// "Waypoint" on the recording screen. Recording continues throughout.

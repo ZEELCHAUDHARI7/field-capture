@@ -84,6 +84,8 @@ class _LevelWorkspaceScreenState extends ConsumerState<LevelWorkspaceScreen> {
           context.push(Routes.captureWalk);
         case CapturePhase.mobileSweep:
           context.push(Routes.captureMobile);
+        case CapturePhase.shooting:
+          context.push(Routes.captureImage);
         case CapturePhase.idle:
           if (previous?.phase == CapturePhase.saving) {
             _announceSaved(previous?.draft);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +17,7 @@ import '../../../core/widgets/switch_tile.dart';
 import '../../../shared/camera/camera_controller.dart';
 import '../../../shared/camera/camera_session.dart';
 import '../state/settings_controller.dart';
+import '../widgets/camera_scan_sheet.dart';
 
 /// Prototype screen 20 — Settings & camera pairing.
 ///
@@ -136,20 +139,10 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  /// "Scan for 360° cameras" is a button to nowhere in the prototype — no
-  /// discovery screen is drawn and no pairing protocol is named.
-  /// ASSUMPTIONS.md §H5.
-  void _scan(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Camera discovery needs the Ricoh SDK — not wired up yet.',
-          ),
-        ),
-      );
-  }
+  /// "Scan for 360° cameras" is drawn with no discovery screen behind it and
+  /// no pairing protocol named (ASSUMPTIONS.md §C14). It answered a tap with a
+  /// snackbar; it now opens the sheet, which is mocked but real to use.
+  void _scan(BuildContext context) => unawaited(CameraScanSheet.show(context));
 
   /// "Destructive settings opt in" — so turning this ON asks, turning it off
   /// does not.

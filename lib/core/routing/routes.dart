@@ -19,6 +19,7 @@ abstract final class Routes {
   // Phase 3 — capture.
   static const String captureWalk = '/capture/walk';
   static const String captureMobile = '/capture/mobile';
+  static const String captureImage = '/capture/image';
 
   // Phase 4 — sync and settings.
   static const String uploads = '/uploads';

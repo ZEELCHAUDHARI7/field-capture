@@ -8,6 +8,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/chip_selector.dart';
+import '../../../shared/camera/camera_controller.dart';
+import '../../../shared/camera/camera_session.dart';
 import '../../plan/models/plan_marker.dart';
 import '../models/issue_draft.dart';
 import '../state/issue_report_controller.dart';
@@ -50,6 +52,7 @@ class _ReportIssueSheetState extends ConsumerState<ReportIssueSheet> {
     final IssueReportFlow flow = ref.watch(issueReportProvider);
     final IssueReportController controller =
         ref.read(issueReportProvider.notifier);
+    final CameraSession camera = ref.watch(cameraSessionProvider);
     final IssueDraft? draft = flow.draft;
 
     if (draft == null) return const SizedBox.shrink();
@@ -78,8 +81,10 @@ class _ReportIssueSheetState extends ConsumerState<ReportIssueSheet> {
                     child: _PhotoButton(
                       icon: Icons.photo_camera_outlined,
                       label: 'Phone photo',
-                      attached: draft.hasPhoto,
-                      onTap: controller.attachPhoto,
+                      attached: draft.photo == IssuePhoto.phone,
+                      onTap: () => draft.photo == IssuePhoto.phone
+                          ? controller.removePhoto()
+                          : controller.attachPhoto(IssuePhoto.phone),
                     ),
                   ),
                   const SizedBox(width: AppSizes.md),
@@ -87,8 +92,14 @@ class _ReportIssueSheetState extends ConsumerState<ReportIssueSheet> {
                     child: _PhotoButton(
                       icon: Icons.language_outlined,
                       label: '360° camera still',
-                      attached: draft.hasPhoto,
-                      onTap: controller.attachPhoto,
+                      attached: draft.photo == IssuePhoto.camera360,
+                      // A still comes from the camera, so this refuses while
+                      // the camera is gone — the same rule the dock applies.
+                      enabled: camera.isConnected,
+                      disabledLabel: 'Camera offline',
+                      onTap: () => draft.photo == IssuePhoto.camera360
+                          ? controller.removePhoto()
+                          : controller.attachPhoto(IssuePhoto.camera360),
                     ),
                   ),
                 ],
@@ -185,23 +196,39 @@ class _PhotoButton extends StatelessWidget {
     required this.label,
     required this.attached,
     required this.onTap,
+    this.enabled = true,
+    this.disabledLabel,
   });
 
   final IconData icon;
   final String label;
   final bool attached;
   final VoidCallback onTap;
+  final bool enabled;
+
+  /// Shown instead of [label] when the button is refused, so the reason is on
+  /// the control rather than in a toast after the tap.
+  final String? disabledLabel;
 
   @override
   Widget build(BuildContext context) {
+    final Color foreground = !enabled
+        ? AppColors.onSurfaceVariant
+        : (attached ? AppColors.success : AppColors.onSurface);
+
     return Semantics(
       button: true,
+      enabled: enabled,
       label: attached ? '$label, attached' : label,
       child: Material(
-        color: attached ? AppColors.successContainer : AppColors.surface,
+        color: switch ((enabled, attached)) {
+          (false, _) => AppColors.neutralContainer,
+          (true, true) => AppColors.successContainer,
+          (true, false) => AppColors.surface,
+        },
         borderRadius: BorderRadius.circular(AppSizes.radiusCard),
         child: InkWell(
-          onTap: onTap,
+          onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(AppSizes.radiusCard),
           child: CustomPaint(
             painter: attached ? null : const _DashedBorderPainter(),
@@ -227,13 +254,14 @@ class _PhotoButton extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    attached ? 'Photo attached' : label,
+                    !enabled
+                        ? (disabledLabel ?? label)
+                        : (attached ? 'Attached' : label),
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: attached
-                              ? AppColors.success
-                              : AppColors.onSurface,
-                        ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: foreground),
                   ),
                 ],
               ),

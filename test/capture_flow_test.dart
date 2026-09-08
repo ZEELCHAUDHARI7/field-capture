@@ -128,7 +128,7 @@ void main() {
         ..confirmStartPin();
     }
 
-    test('video goes to recording; image saves straight away', () {
+    test('video goes to recording; image goes to the shutter', () {
       walkToRecording();
       expect(state().phase, CapturePhase.recording);
 
@@ -144,7 +144,42 @@ void main() {
         ..placeProvisionalPin(const PlanPoint(4, 4))
         ..confirmStartPin();
 
+      // Image used to jump straight to saving, so the mode named on the deck's
+      // own dock had no screen behind it. It now frames, then shoots.
+      expect(state().phase, CapturePhase.shooting);
+
+      flow().captureStill();
       expect(state().phase, CapturePhase.saving);
+    });
+
+    test('the shutter only fires while framing', () {
+      flow().discard();
+      flow().captureStill();
+      expect(state().phase, CapturePhase.idle);
+
+      walkToRecording();
+      flow().captureStill();
+      expect(
+        state().phase,
+        CapturePhase.recording,
+        reason: 'a video walk must not be endable by the image shutter',
+      );
+    });
+
+    test('backing out of the shutter throws the still away', () {
+      flow()
+        ..beginNaming(
+          mode: CaptureMode.image,
+          calibrationId: 'prj-4821-l03',
+          levelCode: 'L03',
+        )
+        ..confirmName()
+        ..placeProvisionalPin(const PlanPoint(4, 4))
+        ..confirmStartPin()
+        ..discard();
+
+      expect(state().phase, CapturePhase.idle);
+      expect(state().draft, isNull);
     });
 
     test('waypoints number from 1 and keep the recording alive', () {

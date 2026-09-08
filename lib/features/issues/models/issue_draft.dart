@@ -23,6 +23,22 @@ enum IssueReportPhase {
   bool get isActive => this != IssueReportPhase.idle;
 }
 
+/// Which of the two buttons on the sheet attached the photo.
+///
+/// The deck draws "Phone photo" and "360° camera still" side by side and gives
+/// neither a capture flow (ASSUMPTIONS.md §H2). They were wired to the same
+/// no-op, so the two buttons were indistinguishable once tapped. Recording the
+/// source keeps them honest — and a 360° still is unavailable when the camera
+/// is, the same way the capture dock refuses.
+enum IssuePhoto {
+  phone('Phone photo'),
+  camera360('360° camera still');
+
+  const IssuePhoto(this.label);
+
+  final String label;
+}
+
 /// The issue being raised.
 ///
 /// "Raising an issue is a short sheet: title, category, severity, optional
@@ -34,7 +50,7 @@ class IssueDraft {
     this.title = '',
     this.category = IssueCategory.access,
     this.severity = IssueSeverity.medium,
-    this.hasPhoto = false,
+    this.photo,
     this.pin,
   });
 
@@ -47,9 +63,11 @@ class IssueDraft {
   /// Medium is pre-selected in the prototype.
   final IssueSeverity severity;
 
-  /// "Phone photo" or "360° camera still". Optional — only title, category and
-  /// severity are required: "speed matters on site".
-  final bool hasPhoto;
+  /// Which button attached it, or null for none. Optional — only title,
+  /// category and severity are required: "speed matters on site".
+  final IssuePhoto? photo;
+
+  bool get hasPhoto => photo != null;
 
   /// Null means the user never tapped the plan, and the pin falls back to the
   /// centre of it. See ASSUMPTIONS.md §H1.
@@ -62,7 +80,8 @@ class IssueDraft {
     String? title,
     IssueCategory? category,
     IssueSeverity? severity,
-    bool? hasPhoto,
+    IssuePhoto? photo,
+    bool clearPhoto = false,
     PlanPoint? pin,
   }) {
     return IssueDraft(
@@ -70,7 +89,7 @@ class IssueDraft {
       title: title ?? this.title,
       category: category ?? this.category,
       severity: severity ?? this.severity,
-      hasPhoto: hasPhoto ?? this.hasPhoto,
+      photo: clearPhoto ? null : (photo ?? this.photo),
       pin: pin ?? this.pin,
     );
   }

@@ -31,6 +31,13 @@ class CameraSessionController extends Notifier<CameraSession> {
     state = _paired;
   }
 
+  /// Completes a pairing from the discovery sheet.
+  ///
+  /// The prototype names no pairing protocol (ASSUMPTIONS.md §C14), so this is
+  /// the mock's stand-in: the scan already spent the time, and the camera it
+  /// found is the one described above.
+  void pair() => state = _paired;
+
   /// QA hook — lets a tester drop the camera without unplugging one, so the
   /// camera-lost state on every capture screen is reachable. Removed when the
   /// real session lands.

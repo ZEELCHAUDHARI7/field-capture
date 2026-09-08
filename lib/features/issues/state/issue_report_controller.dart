@@ -37,10 +37,16 @@ class IssueReportController extends Notifier<IssueReportFlow> {
   void setSeverity(IssueSeverity severity) =>
       _patch((IssueDraft d) => d.copyWith(severity: severity));
 
-  /// PHASE 4 MOCK. Both photo buttons record that a photo was attached without
-  /// opening a camera — there is no camera integration, and the prototype
-  /// draws no capture step for either button. ASSUMPTIONS.md §H2.
-  void attachPhoto() => _patch((IssueDraft d) => d.copyWith(hasPhoto: true));
+  /// PHASE 4 MOCK. No camera opens — there is no camera integration and the
+  /// deck draws no capture step for either button (ASSUMPTIONS.md §H2) — but
+  /// which button was used is recorded, so the two are no longer the same
+  /// no-op and the sheet can say what is attached.
+  void attachPhoto(IssuePhoto source) =>
+      _patch((IssueDraft d) => d.copyWith(photo: source));
+
+  /// Tapping the attached source again removes it.
+  void removePhoto() =>
+      _patch((IssueDraft d) => d.copyWith(clearPhoto: true));
 
   /// "Next — pin location".
   void confirmCompose() {

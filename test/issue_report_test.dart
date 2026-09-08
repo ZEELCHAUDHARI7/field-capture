@@ -64,11 +64,23 @@ void main() {
       expect(state().draft!.title, 'Zone C access blocked');
     });
 
-    test('a photo is optional and either button attaches one', () {
+    test('either button attaches, and the draft records which one', () {
+      // Both buttons used to call the same no-op, so once tapped they were
+      // indistinguishable. ASSUMPTIONS.md §H2.
       flow()
         ..begin(calibrationId)
-        ..attachPhoto();
+        ..attachPhoto(IssuePhoto.phone);
+      expect(state().draft!.photo, IssuePhoto.phone);
       expect(state().draft!.hasPhoto, isTrue);
+
+      // The other button replaces rather than stacks.
+      flow().attachPhoto(IssuePhoto.camera360);
+      expect(state().draft!.photo, IssuePhoto.camera360);
+
+      // And a photo stays optional — tapping the attached source clears it.
+      flow().removePhoto();
+      expect(state().draft!.hasPhoto, isFalse);
+      expect(state().draft!.photo, isNull);
     });
 
     test('refuses to start a second report while one is open', () {
