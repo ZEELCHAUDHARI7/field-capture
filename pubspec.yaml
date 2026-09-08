@@ -4,11 +4,20 @@ publish_to: "none"
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  # Raised from 3.4.0 for sphere_view, which requires ^3.11.0.
+  sdk: ">=3.11.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
+
+  # The real 360° capture: a guided handheld sphere capture, a native
+  # C++/OpenCV stitch and a GPU 360° viewer. Vendored rather than pulled from
+  # pub.dev because it is not published yet — see packages/sphere_view/VENDORED.md
+  # for the one-time native build step, and its docs/INTEGRATION.md for the
+  # host-app contract this app implements.
+  sphere_view:
+    path: packages/sphere_view
 
   # State management. Chosen because connectivity and camera session state are
   # read by 9 screens each; constructor-passing them would be unmaintainable.
@@ -18,17 +27,35 @@ dependencies:
   # than forcing them to become routes.
   go_router: ^14.0.0
 
+  # The CAMERA runtime grant for Mobile Capture. sphere_view deliberately
+  # requests no permission of its own, so this is the app's job and there is no
+  # way to do it without a plugin.
+  permission_handler: ^12.0.1
+
+  # Where the capture bundles, the panoramas and the stitch queue's state file
+  # live. sphere_view depends on this too, but the app addresses those paths
+  # directly, so it is declared rather than leaned on as a transitive.
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
 
-# No other packages in Phase 1. See rule 9 in the project brief: nothing is added
-# until a screen genuinely needs it. Deliberately NOT added yet:
-#   intl            - formatters.dart covers Phase 1 needs with zero dependency
+# Rule 9 in the project brief: nothing is added until a screen genuinely needs
+# it. The four above sphere_view arrived that way in Phase 7, when Mobile Capture
+# stopped being a timer. Still deliberately NOT added:
+#   intl            - formatters.dart covers what is needed with zero dependency
 #   google_fonts    - requires runtime network; Inter is bundled instead (below)
-#   drift / isar    - no persistence requirement until Phase 3
+#   drift / isar    - sphere captures persist through a small JSON store
+#                     (features/plan/data/sphere_capture_store.dart); a schema
+#                     engine is not warranted for one list of markers
 #   freezed         - build_runner friction with no payoff while models are mock
+#   camera          - sphere_view owns its camera. Architecture §5: bracketed
+#                     hardware burst, real intrinsics, AE/AWB/AF hard lock and
+#                     frame timestamps are unavailable from every existing
+#                     Flutter camera plugin
 
 flutter:
   uses-material-design: true

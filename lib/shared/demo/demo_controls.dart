@@ -45,7 +45,14 @@ class DemoControls {
   final bool downloadsFail;
 
   /// "Gated on device capability, with a clear message when unsupported"
-  /// (stated). Nothing queries the device, so this is the gate.
+  /// (stated).
+  ///
+  /// The device *is* queried now — `sphereCaptureGateProvider` runs
+  /// `SphereCapabilityProbe`, which reads the motion hardware, the camera
+  /// descriptors and total RAM. This switch layers a refusal on top of that
+  /// answer, because the refusal states are otherwise unreachable without a
+  /// second tablet: no gyroscope, or an ABI the native stitcher was not built
+  /// for.
   final bool mobileCaptureSupported;
 
   /// Bumped by [DemoControlsController.reset].
@@ -112,6 +119,12 @@ class DemoControlsController extends Notifier<DemoControls> {
 
   /// Clears every fault and, via [DemoControls.generation], throws away every
   /// capture, issue and walk saved since launch.
+  ///
+  /// The real sphere captures are **not** among them, and deliberately so: they
+  /// point at panoramas that are real files, and bumping a counter would leave
+  /// a few hundred megabytes of JPEG on the tablet with nothing referring to
+  /// it. The console clears those explicitly — see the demo screen's
+  /// "Delete the captured 360s" control.
   void reset() => state = DemoControls(generation: state.generation + 1);
 }
 

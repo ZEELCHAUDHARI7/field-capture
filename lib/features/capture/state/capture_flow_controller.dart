@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sphere_view/sphere_view.dart';
 
-import '../../../shared/demo/demo_controls.dart';
 import '../../plan/data/plan_repository.dart';
 import '../../plan/models/plan_marker.dart';
 import '../../plan/models/plan_space.dart';
@@ -11,6 +11,7 @@ import '../../plan/state/workspace_controller.dart';
 import '../../uploads/state/upload_queue_controller.dart';
 import '../models/capture_draft.dart';
 import '../models/capture_naming.dart';
+import 'stitch_queue_controller.dart';
 
 /// Owns the whole capture flow, across three routes and six drawn states.
 ///
@@ -20,21 +21,10 @@ import '../models/capture_naming.dart';
 /// when the user backs out of a route.
 class CaptureFlowController extends Notifier<CaptureFlow> {
   Timer? _ticker;
-  Timer? _sweep;
-
-  /// The four guided steps of a mobile sweep. Only the first is drawn in the
-  /// prototype; the deck shows four step dots, so there are four steps.
-  /// ASSUMPTIONS.md §G4.
-  static const List<String> mobileSteps = <String>[
-    'Sweep up — floor to ceiling',
-    'Sweep down — ceiling to floor',
-    'Rotate left — hold the phone steady',
-    'Rotate right — close the sphere',
-  ];
 
   @override
   CaptureFlow build() {
-    ref.onDispose(_stopTimers);
+    ref.onDispose(_stopTicker);
     return const CaptureFlow.idle();
   }
 
@@ -119,11 +109,17 @@ class CaptureFlowController extends Notifier<CaptureFlow> {
         );
         _startTicker();
       case CaptureMode.mobile:
+        // The session id is minted here, before the capture screen opens,
+        // because it names the bundle directory on disk. A capture the app is
+        // killed during is only findable afterwards if the name of the folder
+        // it was writing into was decided before it started.
         state = CaptureFlow(
-          phase: CapturePhase.mobileSweep,
-          draft: placed.copyWith(startedAt: DateTime.now()),
+          phase: CapturePhase.sphereCapture,
+          draft: placed.copyWith(
+            startedAt: DateTime.now(),
+            sphereSessionId: 'sphere-${DateTime.now().microsecondsSinceEpoch}',
+          ),
         );
-        _startSweep();
       case CaptureMode.image:
         state = CaptureFlow(
           phase: CapturePhase.shooting,
@@ -198,10 +194,59 @@ class CaptureFlowController extends Notifier<CaptureFlow> {
     unawaited(_commit());
   }
 
+  // ---------------------------------------------------------------------------
+  // The sphere capture
+  // ---------------------------------------------------------------------------
+
+  /// The guided capture finished and the operator kept it.
+  ///
+  /// Three things happen, and none of them waits for a stitch: the pin is
+  /// written to the plan in its `stitching` state, the bundle goes in the
+  /// queue, and the flow goes idle so the crew can walk to the next station.
+  ///
+  /// Awaiting the stitch here would still work — the panoramas would come out,
+  /// correct, in order, with the user standing still between them. That failure
+  /// is invisible in a test and obvious on a site, which is why
+  /// `test/stitch_queue_test.dart` pins it.
+  Future<void> completeSphereCapture(CaptureBundle bundle) async {
+    final CaptureDraft? draft = state.draft;
+    if (draft == null || state.phase != CapturePhase.sphereCapture) return;
+    final PlanPoint? at = draft.startPin;
+    if (at == null) return;
+
+    state = CaptureFlow(phase: CapturePhase.saving, draft: draft);
+
+    final CaptureMarker marker = CaptureMarker(
+      id: 'cap-${DateTime.now().microsecondsSinceEpoch}',
+      at: at,
+      recordedAt: draft.startedAt ?? DateTime.now(),
+      name: draft.name,
+      mode: draft.mode,
+      sphereSessionId: bundle.sessionId,
+      stitch: SphereStitchState.stitching,
+    );
+
+    await ref.read(planRepositoryProvider).saveCapture(
+          draft.calibrationId,
+          marker,
+        );
+
+    await ref.read(stitchJobsProvider.notifier).enqueue(
+          bundle: bundle,
+          captureName: draft.name,
+          calibrationId: draft.calibrationId,
+        );
+
+    // The pin is on the plan from here. The upload is enqueued when the stitch
+    // lands, because that is the first moment the real byte count exists.
+    ref.invalidate(workspaceDataProvider(draft.calibrationId));
+    state = const CaptureFlow.idle();
+  }
+
   /// Cancel from the naming sheet or a pin mode, and Discard from recording.
   /// "Cancel returns to the dock with nothing recorded."
   void discard() {
-    _stopTimers();
+    _stopTicker();
     state = const CaptureFlow.idle();
   }
 
@@ -229,45 +274,9 @@ class CaptureFlowController extends Notifier<CaptureFlow> {
     });
   }
 
-  /// PHASE 3 MOCK. A real sweep advances on what the phone's camera and LiDAR
-  /// actually see; there is no device sensor behind this, so progress runs on a
-  /// timer. ASSUMPTIONS.md §G4.
-  void _startSweep() {
-    _sweep?.cancel();
-    _sweep = Timer.periodic(const Duration(milliseconds: 260), (_) {
-      final CaptureDraft? draft = state.draft;
-      if (draft == null || state.phase != CapturePhase.mobileSweep) return;
-
-      final double next = (draft.mobileProgress + 0.02).clamp(0.0, 1.0);
-      final int step =
-          (next * mobileSteps.length).floor().clamp(0, mobileSteps.length - 1);
-
-      if (next >= 1) {
-        _sweep?.cancel();
-        state = CaptureFlow(
-          phase: CapturePhase.saving,
-          draft: draft.copyWith(mobileProgress: 1, mobileStep: step),
-        );
-        unawaited(_commit());
-        return;
-      }
-
-      state = CaptureFlow(
-        phase: CapturePhase.mobileSweep,
-        draft: draft.copyWith(mobileProgress: next, mobileStep: step),
-      );
-    });
-  }
-
   void _stopTicker() {
     _ticker?.cancel();
     _ticker = null;
-  }
-
-  void _stopTimers() {
-    _stopTicker();
-    _sweep?.cancel();
-    _sweep = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -281,7 +290,7 @@ class CaptureFlowController extends Notifier<CaptureFlow> {
     final CaptureDraft? draft = state.draft;
     if (draft == null) return;
 
-    _stopTimers();
+    _stopTicker();
     final PlanRepository repository = ref.read(planRepositoryProvider);
 
     if (draft.mode == CaptureMode.video) {
@@ -328,30 +337,21 @@ class CaptureFlowController extends Notifier<CaptureFlow> {
     state = const CaptureFlow.idle();
   }
 
-  /// PHASE 3 MOCK. Real sizes come from the camera. These are scaled from the
-  /// figures the prototype's upload queue shows: ~36 MB per minute of 360°
-  /// video, 28 MB per still, 46 MB per mobile sphere.
+  /// PHASE 3 MOCK, for the two modes that still are one. Real sizes come from
+  /// the camera. These are scaled from the figures the prototype's upload queue
+  /// shows: ~36 MB per minute of 360° video, 28 MB per still.
+  ///
+  /// Mobile Capture is no longer here: a stitched panorama is a file, and the
+  /// queue is given its actual length in
+  /// `StitchJobsController._onStitched`.
   int _estimateSize(CaptureDraft draft) => switch (draft.mode) {
         CaptureMode.video =>
           (36 * 1000 * 1000 * (draft.elapsed.inSeconds / 60).clamp(0.2, 60))
               .round(),
         CaptureMode.image => 28 * 1000 * 1000,
-        CaptureMode.mobile => 46 * 1000 * 1000,
+        CaptureMode.mobile => 0,
       };
 }
-
-/// Whether this phone can run Mobile Capture.
-///
-/// The prototype says the mode is "gated on device capability, with a clear
-/// message when unsupported", but never draws that message and names no
-/// capability test. Nothing here queries the device — override this provider
-/// to see the unsupported screen. ASSUMPTIONS.md §G7.
-final mobileCaptureSupportedProvider = Provider<bool>((ref) {
-  return ref.watch(
-    demoControlsProvider
-        .select((DemoControls demo) => demo.mobileCaptureSupported),
-  );
-});
 
 final captureFlowProvider =
     NotifierProvider<CaptureFlowController, CaptureFlow>(

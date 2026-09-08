@@ -6,6 +6,7 @@ import '../models/plan_space.dart';
 import '../models/trajectory.dart';
 import '../models/workspace_data.dart';
 import 'mock_plan_geometry.dart';
+import 'sphere_capture_store.dart';
 
 /// The boundary a real Asite calibration-bundle reader will implement.
 abstract interface class PlanRepository {
@@ -17,6 +18,14 @@ abstract interface class PlanRepository {
   /// network, which is the product's central claim. Upload is a separate
   /// concern owned by the queue.
   Future<void> saveCapture(String calibrationId, CaptureMarker capture);
+
+  /// Replaces a capture that is already recorded, by id.
+  ///
+  /// Exists for one transition: a sphere capture is pinned the moment the
+  /// bundle is saved, with no panorama, and gains one a minute later when the
+  /// stitch lands. Anything that reaches the plan before it is finished needs a
+  /// way to say so afterwards.
+  Future<void> updateCapture(String calibrationId, CaptureMarker capture);
 
   /// Records a completed video walk.
   Future<void> saveTrajectory(String calibrationId, Trajectory trajectory);
@@ -36,12 +45,21 @@ abstract interface class PlanRepository {
 /// which only appears when the coverage filter is set to All.
 class MockPlanRepository implements PlanRepository {
   MockPlanRepository({
+    required this.sphereCaptures,
     this.latency = const Duration(milliseconds: 500),
     this.simulateError = false,
   });
 
   final Duration latency;
   final bool simulateError;
+
+  /// The one part of this repository that is not mock.
+  ///
+  /// Sphere captures point at panoramas that are real files, so they outlive
+  /// the process and are read from disk rather than from the maps below. They
+  /// are merged into `fetchWorkspace` exactly as the in-memory captures are —
+  /// the plan does not care which of the two a marker came from.
+  final SphereCaptureStore sphereCaptures;
 
   /// Captures saved on this device since launch, by calibration.
   ///
@@ -62,7 +80,26 @@ class MockPlanRepository implements PlanRepository {
 
   @override
   Future<void> saveCapture(String calibrationId, CaptureMarker capture) async {
+    if (capture.sphereSessionId != null) {
+      await sphereCaptures.save(calibrationId, capture);
+      return;
+    }
     _localCaptures.putIfAbsent(calibrationId, () => <CaptureMarker>[]).add(capture);
+  }
+
+  @override
+  Future<void> updateCapture(
+    String calibrationId,
+    CaptureMarker capture,
+  ) async {
+    if (capture.sphereSessionId != null) {
+      await sphereCaptures.save(calibrationId, capture);
+      return;
+    }
+    final List<CaptureMarker>? list = _localCaptures[calibrationId];
+    if (list == null) return;
+    final int index = list.indexWhere((CaptureMarker c) => c.id == capture.id);
+    if (index >= 0) list[index] = capture;
   }
 
   @override
@@ -124,6 +161,10 @@ class MockPlanRepository implements PlanRepository {
           ),
       ],
       captures: <CaptureMarker>[
+        // Real sphere captures first, then this session's in-memory ones, then
+        // the seeds — newest work reads first, which is the same reason the
+        // Today filter exists.
+        ...sphereCaptures.forCalibration(calibrationId),
         ...?_localCaptures[calibrationId],
         CaptureMarker(
           id: '$calibrationId-cap-1',
@@ -251,5 +292,10 @@ final planRepositoryProvider = Provider<PlanRepository>((ref) {
     demoControlsProvider
         .select((DemoControls demo) => (demo.planFails, demo.generation)),
   );
-  return MockPlanRepository(simulateError: fails);
+  return MockPlanRepository(
+    simulateError: fails,
+    // Read rather than watched: the store outlives the demo console's
+    // generation counter on purpose, because the files it points at do.
+    sphereCaptures: ref.read(sphereCaptureStoreProvider),
+  );
 });

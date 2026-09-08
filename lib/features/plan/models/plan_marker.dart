@@ -41,6 +41,17 @@ sealed class PlanMarker {
   final DateTime recordedAt;
 }
 
+/// How far a Mobile Capture sphere has got through stitching.
+///
+/// A stitch takes up to a minute and runs behind the crew, so a capture point
+/// is on the plan long before its panorama exists. This is what the pin draws
+/// and what decides whether tapping it opens a viewer.
+///
+/// [none] is not a stage of the same process — it means this marker has no
+/// panorama and never will. It is what the seeded mock captures and the
+/// external-camera modes carry.
+enum SphereStitchState { none, stitching, ready, failed }
+
 /// A capture point — where a 360° image or mobile pano was taken.
 ///
 /// Video walks are drawn as a [Trajectory] instead, since they have a path.
@@ -52,12 +63,74 @@ class CaptureMarker extends PlanMarker {
     required super.recordedAt,
     required this.name,
     required this.mode,
+    this.sphereSessionId,
+    this.panoramaPath,
+    this.previewPath,
+    this.stitch = SphereStitchState.none,
+    this.reportJson,
+    this.stitchError,
   });
 
   /// `L03_Img_2026-07-03_13`.
   final String name;
 
   final CaptureMode mode;
+
+  /// The `sphere_view` session this came from, which is also the key the stitch
+  /// queue tracks it by. Null for everything that is not a real sphere capture.
+  final String? sphereSessionId;
+
+  /// `StitchResult.equirectPath` — the full-resolution equirectangular JPEG,
+  /// with its XMP GPano block already written. Null until the stitch lands.
+  final String? panoramaPath;
+
+  /// The 2048 px preview the pipeline writes first, so there is something to
+  /// look at within seconds of the last shutter rather than after a minute.
+  final String? previewPath;
+
+  final SphereStitchState stitch;
+
+  /// `StitchReport.toJson`, kept verbatim.
+  ///
+  /// Persisted rather than parsed into fields because the value of it is
+  /// answering "why is this defect soft" months later, and a report that has to
+  /// be modelled here would lose whatever the pipeline learns to measure next.
+  final String? reportJson;
+
+  /// Why the stitch failed, in the pipeline's own words. Only set for [failed].
+  final String? stitchError;
+
+  /// True when there is a file to open — the preview counts, since it is a
+  /// complete panorama at a lower resolution rather than a partial one.
+  bool get hasPanorama => panoramaPath != null || previewPath != null;
+
+  /// The best file available to view: the full panorama, else the preview.
+  String? get viewablePath => panoramaPath ?? previewPath;
+
+  CaptureMarker copyWith({
+    String? name,
+    String? panoramaPath,
+    String? previewPath,
+    SphereStitchState? stitch,
+    String? reportJson,
+    String? stitchError,
+    bool clearStitchError = false,
+  }) {
+    return CaptureMarker(
+      id: id,
+      at: at,
+      recordedAt: recordedAt,
+      name: name ?? this.name,
+      mode: mode,
+      sphereSessionId: sphereSessionId,
+      panoramaPath: panoramaPath ?? this.panoramaPath,
+      previewPath: previewPath ?? this.previewPath,
+      stitch: stitch ?? this.stitch,
+      reportJson: reportJson ?? this.reportJson,
+      stitchError:
+          clearStitchError ? null : (stitchError ?? this.stitchError),
+    );
+  }
 }
 
 /// Severity as drawn on the issue chips.

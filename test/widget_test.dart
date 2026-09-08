@@ -7,15 +7,24 @@
 // Deliberately does NOT use pumpAndSettle: connectivity_pill.dart and
 // state_views.dart drive repeating animations, and pumpAndSettle never
 // returns while one is running.
+//
+// The storage overrides are what `main()` resolves before `runApp`. The shell
+// starts the stitch queue on the first frame, so booting without them throws —
+// which is the point of those providers having no default.
 
 import 'package:field_capture/app.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/sphere_test_support.dart';
+
 void main() {
   testWidgets('app boots to the sign-in screen', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const ProviderScope(child: FieldCaptureApp()),
+      ProviderScope(
+        overrides: sphereStorageOverrides(),
+        child: const FieldCaptureApp(),
+      ),
     );
 
     await tester.pump();                                   // first route builds

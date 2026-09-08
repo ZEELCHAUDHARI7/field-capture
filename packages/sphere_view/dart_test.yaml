@@ -1,0 +1,14 @@
+# Declares the tags used in the suite, so `flutter test` does not warn on every
+# run. `synthetic` marks the tests that render a capture set before asserting —
+# they are slower than the unit tests and can be skipped with
+# `flutter test --exclude-tags synthetic` while iterating.
+tags:
+  synthetic:
+    description: Renders a synthetic capture set; slower than a unit test.
+  native:
+    description: >-
+      Drives the desktop build of libsphere_stitch against a rendered capture
+      bundle. Needs `tools/build_native.sh` and `tools/synth.dart` to have run,
+      and takes minutes rather than seconds — the Phase 10 cancellation
+      criteria are statements about repetition (50 cancels during blending, 100
+      cancel cycles), so they cost what repetition costs.

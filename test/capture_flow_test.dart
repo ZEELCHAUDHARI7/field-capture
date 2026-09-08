@@ -364,6 +364,16 @@ class _RecordingPlanRepository implements PlanRepository {
   }
 
   @override
+  Future<void> updateCapture(
+    String calibrationId,
+    CaptureMarker capture,
+  ) async {
+    final int index =
+        savedCaptures.indexWhere((CaptureMarker c) => c.id == capture.id);
+    if (index >= 0) savedCaptures[index] = capture;
+  }
+
+  @override
   Future<void> saveTrajectory(
     String calibrationId,
     Trajectory trajectory,

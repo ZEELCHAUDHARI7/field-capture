@@ -62,6 +62,25 @@ flutter doctor                        # expect a green Android toolchain
 ~1.5 GB system image, and it is the honest test surface for a field app anyway. Enable USB
 debugging (section 4 below).
 
+**For Mobile Capture it is not optional.** The native stitching library is built for
+`arm64-v8a` only, so on an x86_64 emulator the capability probe refuses the feature at the
+dock. The device also needs a **gyroscope** and **≥3 GB of RAM**; there is no reduced mode
+without a gyroscope, because there would be no attitude source tracking the pan and the
+panorama would not be worse, it would be wrong. Every other screen runs on an emulator with
+nothing plugged in.
+
+### C · The NDK, for Mobile Capture only
+
+The 360° stitch is C++ over OpenCV, compiled by Gradle on every build. It needs, in Android
+Studio's **SDK Manager → SDK Tools** (tick *Show Package Details*):
+
+| Component | Version | Why exactly this |
+|---|---|---|
+| NDK (Side by side) | **28.2.13676358** | The version the OpenCV static libraries were built with. Two NDK versions in one link is a libc++ ABI mismatch. Pinned in `android/app/build.gradle.kts` and in `packages/sphere_view/spikes/spike_a_opencv/config.sh` — they must agree |
+| CMake | 3.22.1 | What the plugin's `externalNativeBuild` asks for |
+
+Then build OpenCV once — see section 2.
+
 ### Why not build it in the Claude session instead
 
 That was the original plan, and it is still the better one — it would put zero toolchain on
@@ -102,24 +121,36 @@ On an older SDK, run `flutter upgrade` rather than editing the code down. The on
 
 ```powershell
 cd C:\App
-flutter create --platforms=android,web --org com.asite .
 flutter pub get
 ```
 
-Drop `,web` if you only ever want the APK — but keeping it costs nothing and gives you
-`flutter run -d chrome`, which is the fastest way to look at a change.
+The `android/` folder is in the repository, so `flutter create` is no longer needed.
 
-`flutter create` only adds what is missing. It will not touch `lib/`, `test/`, `pubspec.yaml`
-or the docs.
+### Build OpenCV — once, and only for Mobile Capture
 
-It produces `applicationId "com.asite.field_capture"`. Two edits worth making straight away in
-`android\app\src\main\AndroidManifest.xml`:
-
-```xml
-android:label="Field Capture"
+```bash
+cd packages/sphere_view
+tools/build_native_mobile.sh --android
 ```
 
-and, since `main.dart` already locks portrait, nothing else is needed there.
+10–20 minutes the first time, then cached; it downloads OpenCV 4.13.0 and leaves ~213 MB of
+static libraries in `packages/sphere_view/build/`, which is gitignored. Everything else in the
+app builds and runs without it — but `flutter build apk` stops with a CMake error naming this
+exact command until it has been run.
+
+**It is a bash script**, so on Windows run it from Git Bash or WSL. It defaults to macOS
+paths; override them if yours differ:
+
+```bash
+ANDROID_SDK=/path/to/sdk NDK_HOST_TAG=linux-x86_64 tools/build_native_mobile.sh --android
+```
+
+The C++ pipeline itself is **not** built by that script — Gradle compiles it from source on
+every `flutter build apk`, so the `.so` in the APK can never be stale. Only OpenCV is cached,
+because it is the part Gradle cannot build in reasonable time.
+
+`applicationId` is already `com.asite.field_capture` and `main.dart` locks portrait, so there
+is nothing to edit in the manifest.
 
 ### If `flutter pub get` resolves Riverpod 3.x
 

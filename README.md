@@ -3,29 +3,36 @@
 Flutter/Android implementation of the Asite **Field Capture** prototype — offline-first 360°
 site progress monitoring.
 
-**Phase 5 of 6 complete. Every screen in the prototype is built.** All ten routes resolve to
-a real screen; no placeholders remain. See [`ASSUMPTIONS.md`](ASSUMPTIONS.md) for everything
-the prototype does not specify, and [`BUILD.md`](BUILD.md) to run it.
-
-Phase 6 is QA and the release APK — nothing here has been compiled yet.
+**Phase 7: Mobile Capture is real.** The mock four-step sweep is gone. Tapping **Mobile
+Capture** now pins a point on the plan, runs a guided ~29-position 360° capture, stitches it
+natively with OpenCV while the crew walks on, and drops a pin that opens the finished
+panorama in a GPU 360° viewer. Everything else — the external 360° camera, the plan bundle,
+the backend — is still mock. See [`ASSUMPTIONS.md`](ASSUMPTIONS.md) for what the prototype
+does not specify, and [`BUILD.md`](BUILD.md) to run it.
 
 ---
 
 ## First run
 
-This repository contains `lib/`, `pubspec.yaml` and the docs. The Android platform folder is
-**not** included, because generating it requires a Flutter SDK and this project was authored in
-an environment without one. Generate it once:
-
 ```bash
-cd <this folder>
-flutter create --platforms=android --org com.asite .
 flutter pub get
+
+# Once, and only for Mobile Capture: builds the OpenCV static libraries the
+# native stitch pipeline links against. 10-20 minutes, then cached.
+cd packages/sphere_view && tools/build_native_mobile.sh --android && cd ../..
+
 flutter run
 ```
 
-`flutter create` adds only the missing platform scaffolding; it will not overwrite anything in
-`lib/`.
+The second step needs the Android SDK, **NDK `28.2.13676358`** and cmake. Skipping it does not
+fail obscurely — the build stops with a message naming the command to run. Full detail in
+[`BUILD.md`](BUILD.md) and [`packages/sphere_view/VENDORED.md`](packages/sphere_view/VENDORED.md).
+
+**Mobile Capture needs a real arm64 device** — a gyroscope, ≥3 GB of RAM, and a camera. The
+stitching library is built for `arm64-v8a` only, so on an emulator the capability probe
+refuses the feature at the dock with a reason rather than letting a crew capture 29 positions
+and fail ninety seconds later. Every other screen still runs on an emulator with nothing
+plugged in.
 
 To build the APK:
 
@@ -67,7 +74,8 @@ to one SDK version. Cards are styled by `core/widgets/app_card.dart` instead.
 | 09 | Recording a walk | Built — wall-clock timer, storage warning, discard confirm |
 | 10 | Waypoint mid-walk | Built — live trail, recording continues |
 | 11 | End pin after the walk | Built — full path, Save blocked without an end pin |
-| 12 | Mobile Capture guide | Built — 4-step sweep, reticle, progress ring |
+| 12 | Mobile Capture guide | **Real** — coaching, guided ~29-position capture, review, native stitch |
+| — | The captured 360° | **Real** — GPU sphere viewer, drag and gyro, the stitch report |
 | 16 | Site issues | Built — severity-ordered list, computed grid references |
 | 17 | Issue detail | Built — read-only sync timeline, Asite Field notice |
 | 18 | Report an issue | Built — chips, optional photo, pin step with centre fallback |
@@ -120,9 +128,10 @@ hidden hook is now a labelled control on one screen:
 | Calibration list | Loading · empty · error |
 | Plan fails to load | The Level Workspace error state |
 | Downloads drop at 62% | A part-downloaded bundle that offers to resume |
-| Mobile Capture supported | The unsupported-device message (§G7) |
+| Mobile Capture supported | The refusal a device without a gyroscope would get — the real probe still runs underneath |
 | Fail the active upload | The failed queue row, its reason and its retry countdown |
 | Reset all demo data | Back to the seed — see below |
+| Delete every captured 360 | The real panoramas and bundles. Separate, because these are files rather than mock objects |
 
 **How reset works, and why it needs no clear-down code.** Each mock holds the captures, issues
 and walks saved since launch in its own fields. `DemoControls.generation` is read by every
@@ -230,7 +239,7 @@ One flow, three routes, six drawn states. `CaptureFlowController` owns all of it
 idle ─beginNaming─▶ naming ─confirmName─▶ pinningStart
                                               │
               video ─┬──────────────────────── ┤
-                     ▼                         ├──▶ mobile: mobileSweep ──▶ saving
+                     ▼                         ├──▶ mobile: sphereCapture ─▶ saving
                  recording                     └──▶ image:  saving
                   │      │
       requestWaypoint    stopWalking
@@ -253,6 +262,41 @@ Two details worth knowing:
   "recording survives the app going background — the timer is authoritative".
 - **A tap is provisional.** It drops a crosshair; only the confirm button commits it, so "a
   mis-tap costs nothing". The same rule is applied to waypoints (§G8).
+
+## Mobile Capture, which is no longer a mock
+
+`sphere_view` — vendored at [`packages/sphere_view`](packages/sphere_view), its host-app
+contract in [`docs/INTEGRATION.md`](packages/sphere_view/docs/INTEGRATION.md) — does the
+capture and the stitch. The app supplies the plan, the pin and the crew's workflow, in four
+parts:
+
+**1. The gate, at the dock.** `sphereCaptureGateProvider` runs the package's capability probe
+before the naming sheet opens. It reads the motion hardware, the camera descriptors and total
+RAM, and opens no camera, so it is cheap enough to run on the tap. A tablet with no gyroscope
+or the wrong ABI is refused there with a sentence, not after 25 captures.
+
+**2. The capture.** One route, three internal steps — the package's coaching screen, its
+guided capture view, its review screen. They are used rather than reimplemented because the
+coaching carries the "pivot, don't walk" parallax mitigation, and the capture view holds the
+aim, steadiness and dwell gates that decide when the shutter may fire.
+
+**3. The stitch, behind the crew.** On save, the pin goes onto the plan *immediately* in a
+`stitching` state and the bundle goes into `StitchQueue`. Nothing on the capture path awaits
+the stitch: it takes up to a minute, a site walk has thirty stations, and blocking each one is
+half an hour of standing still. A 2048 px preview lands within seconds and the full panorama
+replaces it. Progress shows in a card over the plan — pannable, zoomable, dismissible, never a
+modal. `test/sphere_capture_test.dart` pins the non-blocking property, because when it breaks
+everything still works and only the crew's day gets longer.
+
+**4. Storage.** Panoramas live outside their capture bundles, and a bundle is deleted only when
+`report.meetsQualityTargets`. The bad captures are the ones worth keeping: a bundle is a
+self-describing directory that a better pipeline can re-stitch later, from the office, without
+anybody returning to site.
+
+**The heading is deliberately absent.** The package's pose sources are magnetometer-free —
+indoors, rebar and lift motors bend magnetic heading by tens of degrees — so yaw 0 is wherever
+the capture started. `setPlanHeading` wants a surveyed north and `MockPlanGeometry` has none,
+so nothing is written rather than a confident zero. See ASSUMPTIONS.md §J1.
 
 ## Derived, not stored
 
@@ -286,9 +330,16 @@ wall you stand beside disappears.
 
 ## Next
 
-Phase 6 — QA and release. **Done:** Inter bundled (§A5), the 48 px touch-target audit, and the
-Android back-navigation audit at every mode and sheet. **Left:** screen-by-screen comparison
-against the deck on real hardware, responsive checks, signing configuration and a release APK.
+Phase 7 — Mobile Capture is real, and what is left is hardware time. **Done:** the package
+vendored and building, the mock sweep removed, the capture/stitch/view path end to end, the
+capability gate, persistence across restart, 119 tests passing, `flutter analyze` clean and a
+debug APK with `libsphere_stitch.so` in it. **Left:** a real arm64 device — a capture walked
+end to end, the stitch quality read off `StitchReport`, thermal behaviour on a warm tablet,
+and a kill mid-stitch to confirm the queue picks it back up. Then Phase 6's remaining release
+work: signing configuration and a release APK.
+
+The external 360° camera, the plan bundle and the backend are all still mock, and each still
+names the single file that changes when the real thing arrives.
 
 Phase 6 also added the demo console described under *Exercising the states*, which is what makes
 the states above reachable without a rebuild.

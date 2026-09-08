@@ -1,6 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+// `RenderShiftedBox`, `BoxParentData` and `BoxHitTestResult` are not re-exported
+// by material.dart or widgets.dart — a widget that reaches below the widget
+// layer has to say so.
+import 'package:flutter/rendering.dart';
 
 import '../constants/app_sizes.dart';
 
@@ -38,11 +42,8 @@ class MinTapTarget extends SingleChildRenderObjectWidget {
       _RenderMinTapTarget(minSize);
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderMinTapTarget renderObject,
-  ) {
-    renderObject.minSize = minSize;
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
+    (renderObject as _RenderMinTapTarget).minSize = minSize;
   }
 }
 
@@ -56,6 +57,11 @@ class _RenderMinTapTarget extends RenderShiftedBox {
     _minSize = value;
     markNeedsLayout();
   }
+
+  /// One axis of the forwarded position: kept where the touch already lands on
+  /// the child, and the child's midpoint where it does not.
+  static double _resolve(double local, double extent) =>
+      (local >= 0 && local <= extent) ? local : extent / 2;
 
   Size _expand(Size childSize) => Size(
         math.max(childSize.width, _minSize.width),
@@ -79,8 +85,10 @@ class _RenderMinTapTarget extends RenderShiftedBox {
     }
     child.layout(constraints.loosen(), parentUsesSize: true);
     size = constraints.constrain(_expand(child.size));
+    // The parentheses are load-bearing: `as` binds tighter than `-`, so without
+    // them this casts `child.size` to an Offset and throws at the first layout.
     (child.parentData! as BoxParentData).offset =
-        Alignment.center.alongOffset(size - child.size as Offset);
+        Alignment.center.alongOffset((size - child.size) as Offset);
   }
 
   @override
@@ -91,14 +99,21 @@ class _RenderMinTapTarget extends RenderShiftedBox {
     // the ripple appears under the finger.
     if (super.hitTest(result, position: position)) return true;
 
-    // A touch in the grown margin is pulled to the nearest point on the child
-    // — nearest, not centre. A segmented control puts several children in a
-    // row, and centre would send every near-miss to the middle segment.
+    // A touch in the grown margin is forwarded into the child — per axis, and
+    // not to the centre. A segmented control puts several children in a row,
+    // and forwarding to the centre the way Material's own input padding does
+    // would send every near-miss to the middle segment.
+    //
+    // On an axis the touch is already within, the coordinate is kept: that is
+    // what picks the nearest segment. On an axis it is outside — the grown
+    // margin — it goes to the middle of the child rather than to the edge,
+    // because the edge is usually the control's own padding and nothing is
+    // hit-testable there. Clamping to the edge looks right and misses.
     final RenderBox child = this.child!;
     final Offset childOffset = (child.parentData! as BoxParentData).offset;
     final Offset nearest = Offset(
-      (position.dx - childOffset.dx).clamp(0.0, child.size.width),
-      (position.dy - childOffset.dy).clamp(0.0, child.size.height),
+      _resolve(position.dx - childOffset.dx, child.size.width),
+      _resolve(position.dy - childOffset.dy, child.size.height),
     );
     return result.addWithRawTransform(
       transform: MatrixUtils.forceToPoint(nearest),

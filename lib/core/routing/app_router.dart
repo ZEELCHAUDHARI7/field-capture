@@ -5,8 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/calibrations/screens/calibration_list_screen.dart';
 import '../../features/capture/screens/image_capture_screen.dart';
-import '../../features/capture/screens/mobile_capture_screen.dart';
 import '../../features/capture/screens/recording_screen.dart';
+import '../../features/capture/screens/sphere_capture_screen.dart';
+import '../../features/capture/screens/sphere_viewer_screen.dart';
 import '../../features/demo/screens/demo_controls_screen.dart';
 import '../../features/perspective/screens/perspective_walk_screen.dart';
 import '../../features/perspective/screens/trajectory_picker_screen.dart';
@@ -19,8 +20,9 @@ import 'routes.dart';
 /// The app router.
 ///
 /// The ten prototype routes, every one backed by a real screen, plus the two
-/// Phase 6 additions the deck does not draw: the Image shutter (§C7) and the
-/// demo console (see the README).
+/// Phase 6 additions the deck does not draw — the Image shutter (§C7) and the
+/// demo console (see the README) — and the one Phase 7 addition it could not:
+/// the 360° viewer, which needs a panorama to exist before it is a screen.
 ///
 /// The ten were declared here from day one — the seven not yet built resolved
 /// to a placeholder naming the phase that would deliver them, so no navigation
@@ -60,9 +62,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             const RecordingScreen(),
       ),
       GoRoute(
-        path: Routes.captureMobile,
+        path: Routes.captureSphere,
         builder: (BuildContext context, GoRouterState state) =>
-            const MobileCaptureScreen(),
+            const SphereCaptureScreen(),
       ),
       GoRoute(
         path: Routes.captureImage,
@@ -83,6 +85,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: Routes.demoControls,
         builder: (BuildContext context, GoRouterState state) =>
             const DemoControlsScreen(),
+      ),
+      GoRoute(
+        path: Routes.sphereViewer,
+        builder: (BuildContext context, GoRouterState state) =>
+            SphereViewerScreen(
+          calibrationId: state.pathParameters['calibrationId'] ?? '',
+          captureId: state.pathParameters['captureId'] ?? '',
+        ),
       ),
       GoRoute(
         path: Routes.perspective,

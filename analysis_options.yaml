@@ -1,6 +1,15 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  # `flutter analyze` walks the whole directory tree, so without this it would
+  # also analyse the vendored sphere_view package and its example app — which
+  # are a separate package on flutter_lints ^6 with their own rule set. They are
+  # analysed from their own directory, where their own options apply:
+  #
+  #     cd packages/sphere_view && flutter analyze
+  exclude:
+    - packages/**
+
   language:
     strict-casts: true
     strict-raw-types: true

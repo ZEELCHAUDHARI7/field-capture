@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Capture needs the camera. Declared here so a consuming app inherits it
+         rather than discovering the omission on a device. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- `required="false"` on purpose: a consuming app may embed this package
+         for the viewer alone, and Play should not hide it from devices without
+         a camera on that account. Phase 12 §1 refuses capture at the feature
+         entry point instead — the same place it refuses a device with no
+         gyroscope. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+</manifest>

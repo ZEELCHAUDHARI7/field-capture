@@ -4,13 +4,34 @@ import 'package:go_router/go_router.dart';
 
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/capture/state/stitch_queue_controller.dart';
 
-/// The application shell. Holds nothing but theme and routing.
-class FieldCaptureApp extends ConsumerWidget {
+/// The application shell. Holds nothing but theme, routing, and one `read` that
+/// starts the stitch queue.
+class FieldCaptureApp extends ConsumerStatefulWidget {
   const FieldCaptureApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FieldCaptureApp> createState() => _FieldCaptureAppState();
+}
+
+class _FieldCaptureAppState extends ConsumerState<FieldCaptureApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Instantiates the queue controller, which loads the queue file and starts
+    // draining. Read once rather than watched: this rebuild is the whole app,
+    // and progress ticks at 10 Hz.
+    //
+    // It happens here rather than on the plan screen because the queue's job is
+    // to finish work the app was killed in the middle of, and a panorama left
+    // half-stitched must not wait for somebody to happen to open the level it
+    // belongs to.
+    ref.read(stitchJobsProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final GoRouter router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(

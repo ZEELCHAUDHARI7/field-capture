@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "note": "The Phase 12 §4 real-site corpus. Bundles live outside git; this file and phases/baselines/field/ are the committed half. A real capture cannot be regenerated from a seed the way a synthetic one can, so the checksum is what proves a downloaded bundle is the one a baseline was measured against. Add a scene with `dart run tools/corpus_manifest.dart --add <archive>`; check what is still owed with `--check`.",
+  "scenes": []
+}

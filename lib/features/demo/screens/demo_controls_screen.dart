@@ -16,8 +16,12 @@ import '../../../shared/camera/camera_session.dart';
 import '../../../shared/connectivity/connectivity_controller.dart';
 import '../../../shared/connectivity/connectivity_status.dart';
 import '../../../shared/demo/demo_controls.dart';
+import '../../../shared/storage/sphere_storage.dart';
 import '../../capture/state/capture_flow_controller.dart';
+import '../../capture/state/stitch_queue_controller.dart';
 import '../../issues/state/issue_report_controller.dart';
+import '../../plan/data/plan_repository.dart';
+import '../../plan/data/sphere_capture_store.dart';
 import '../../uploads/state/upload_queue_controller.dart';
 
 /// The demo console. Not a prototype screen — it exists because eight states
@@ -131,9 +135,10 @@ class DemoControlsScreen extends ConsumerWidget {
           const _SectionLabel('Capture'),
           SwitchTile(
             title: 'This phone supports Mobile Capture',
-            description: 'Off shows the unsupported message. The deck asks for '
-                'the LiDAR gate but never draws it, and nothing queries the '
-                'device — this is the gate.',
+            description: 'Off refuses the capture the way a device without a '
+                'gyroscope would. The real probe still runs underneath — this '
+                'only overrides its answer, so the refusal states are reachable '
+                'without a second tablet.',
             value: demo.mobileCaptureSupported,
             onChanged: controller.setMobileCaptureSupported,
           ),
@@ -200,9 +205,80 @@ class DemoControlsScreen extends ConsumerWidget {
               ],
             ),
           ),
+
+          const SizedBox(height: AppSizes.md),
+          AppCard(
+            borderColor: AppColors.outline,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Delete the captured 360s',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSizes.xs),
+                Text(
+                  'Separate from the reset above, because these are real files '
+                  'rather than mock objects: every panorama and every capture '
+                  'bundle on this device, which is a few hundred megabytes per '
+                  'sphere. Nothing is uploaded, so this cannot be undone.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.onSurfaceVariant),
+                ),
+                const SizedBox(height: AppSizes.md),
+                AppButton(
+                  label: 'Delete every captured 360',
+                  variant: AppButtonVariant.destructive,
+                  onPressed: () => _confirmDeleteSpheres(context, ref),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  /// Deletes the panoramas, the bundles and the markers that point at them.
+  Future<void> _confirmDeleteSpheres(BuildContext context, WidgetRef ref) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Delete every captured 360?'),
+        content: const Text(
+          'Every stitched panorama and every capture bundle is removed from '
+          'this device, and their pins come off the plan. This cannot be '
+          'undone.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Keep them'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.onDangerContainer,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (!(confirmed ?? false)) return;
+
+    // The queue is stopped first, so nothing writes a panorama back into a
+    // directory that is being emptied.
+    await ref.read(stitchQueueProvider).stop();
+    await ref.read(sphereCaptureStoreProvider).clear();
+    await ref.read(sphereStorageProvider).deleteEverything();
+    ref.invalidate(stitchJobsProvider);
+    ref.invalidate(planRepositoryProvider);
+
+    if (!context.mounted) return;
+    _say(context, 'Every captured 360 deleted.');
   }
 
   static void _say(BuildContext context, String message) {

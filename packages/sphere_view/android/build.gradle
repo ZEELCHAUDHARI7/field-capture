@@ -1,0 +1,119 @@
+// Build file for the Camera2 half of the plugin.
+//
+// `minSdk` is 24 rather than 28 deliberately. Two of the keys Math §4.1 anchors
+// to — `SENSOR_INFO_PRE_CORRECTION_ACTIVE_ARRAY_SIZE` and `LENS_DISTORTION` —
+// are API 28+, and it would be tidier to require 28. But the fleet is
+// mid-range and rugged tablets, several of which ship Android 7–8 for years
+// after release, and R2 §4 already tells us what the missing keys mean there:
+// on a device without `DISTORTION_CORRECTION_MODE` the two array rectangles are
+// identical, so the pre-correction distinction is moot and the active array is
+// the correct anchor. Every 28+ read is version-guarded and falls back to that.
+//
+// Vendored into Field Capture: this file no longer carries its own `buildscript`
+// classpath or `allprojects` repositories. The host app's
+// `android/settings.gradle.kts` puts AGP and the Kotlin plugin on the build
+// classpath at *its* versions, and `android/build.gradle.kts` declares the
+// repositories for every project. A plugin module pinning a second AGP version
+// conflicts with the one already there — see VENDORED.md.
+
+plugins {
+    id "com.android.library"
+    id "org.jetbrains.kotlin.android"
+}
+
+group = "com.asite.sphereview"
+version = "0.1.0"
+
+android {
+    namespace = "com.asite.sphereview"
+
+    // 36 rather than 35 because AGP 9 is the host app's toolchain and wants it.
+    // Nothing here compiles against an API above 28.
+    compileSdk = 36
+
+    // Pinned to the NDK the OpenCV static libraries were built with, in
+    // `spikes/spike_a_opencv/config.sh`. Two NDK versions in one link is a
+    // libc++ ABI mismatch waiting to happen, and 28.2 is also the version that
+    // emits 16 KB-page-aligned output by default — mandatory for Google Play
+    // as of 2025. A consuming app must set the same `ndkVersion`.
+    ndkVersion = "28.2.13676358"
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+        test.java.srcDirs += "src/test/kotlin"
+    }
+
+    defaultConfig {
+        minSdk = 24
+
+        // arm64 only. R1's recommendation, and the reason is memory rather
+        // than reach: S9 budgets 700 MB of peak RSS for one stitch, which a
+        // 32-bit process cannot reliably give you. A device this package
+        // refuses is one the capability probe explains at the entry point.
+        ndk {
+            abiFilters += ["arm64-v8a"]
+        }
+
+        externalNativeBuild {
+            cmake {
+                arguments += ["-DANDROID_STL=c++_static"]
+                cppFlags += ["-O2", "-fno-fast-math"]
+            }
+        }
+    }
+
+    // The native pipeline is compiled as part of every `flutter build apk`,
+    // from the sources in the tree — so the .so in the APK cannot be stale.
+    // OpenCV is the exception: it is 10-20 minutes of build and is taken
+    // prebuilt from `tools/build_native_mobile.sh --android`, which
+    // `android/CMakeLists.txt` fails loudly and specifically about when it is
+    // missing.
+    externalNativeBuild {
+        cmake {
+            path = file("CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    testOptions {
+        unitTests.all {
+            testLogging {
+                events "passed", "skipped", "failed", "standardOut", "standardError"
+                outputs.upToDateWhen { false }
+                showStandardStreams = true
+            }
+        }
+    }
+}
+
+// Kotlin 2.x DSL. The old `android { kotlinOptions { jvmTarget } }` block is
+// deprecated on the host app's Kotlin 2.3, and the app sets its own target the
+// same way.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    // For ContextCompat.checkSelfPermission. Camera2 throws a bare
+    // SecurityException from deep inside the framework when the permission
+    // is missing, which reaches Dart as an untyped failure; checking first
+    // lets the host app tell "no permission" from "no camera".
+    implementation "androidx.core:core-ktx:1.13.1"
+
+    // For rewriting a written JPEG's EXIF Orientation to normal. The whole
+    // pipeline's contract is that the pixels on disk are the capture frame as
+    // the sensor delivered it, and OpenCV applies a non-normal tag on decode —
+    // which transposes the frame out from under the intrinsics that describe
+    // it. `JPEG_ORIENTATION = 0` asks the HAL for that; this enforces it.
+    implementation "androidx.exifinterface:exifinterface:1.3.7"
+
+    testImplementation "org.jetbrains.kotlin:kotlin-test"
+    testImplementation "junit:junit:4.13.2"
+}

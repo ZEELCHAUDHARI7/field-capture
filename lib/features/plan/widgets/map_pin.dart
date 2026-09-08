@@ -124,36 +124,112 @@ class CapturePin extends StatelessWidget {
       CaptureMode.mobile => Icons.language_outlined,
     };
 
+    // A sphere capture is pinned the moment its bundle is saved, which is up to
+    // a minute before its panorama exists. The pin body does not change — the
+    // capture happened and the point is real — but the badge says what is
+    // behind it, so a tap that opens nothing is never a surprise.
+    final Color body = switch (marker.stitch) {
+      SphereStitchState.failed => AppColors.onDangerContainer,
+      _ => AppColors.primary,
+    };
+
     return _PinTapTarget(
       onTap: onTap,
-      semanticLabel: '${marker.mode.mediaLabel} capture, ${marker.name}',
+      semanticLabel: '${marker.mode.mediaLabel} capture, ${marker.name}'
+          '${switch (marker.stitch) {
+        SphereStitchState.stitching => ', still stitching',
+        SphereStitchState.ready => ', ready to view',
+        SphereStitchState.failed => ', stitch failed',
+        SphereStitchState.none => '',
+      }}',
       child: Opacity(
         opacity: muted ? 0.45 : 1,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Container(
-              height: PinMetrics.capture,
-              width: PinMetrics.capture,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.surface, width: 2),
-                boxShadow: const <BoxShadow>[
-                  BoxShadow(
-                    color: AppColors.shadow,
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
+            Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Container(
+                  height: PinMetrics.capture,
+                  width: PinMetrics.capture,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: body,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.surface, width: 2),
+                    boxShadow: const <BoxShadow>[
+                      BoxShadow(
+                        color: AppColors.shadow,
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Icon(icon, size: 15, color: AppColors.onPrimary),
+                  child: Icon(icon, size: 15, color: AppColors.onPrimary),
+                ),
+                if (marker.stitch != SphereStitchState.none)
+                  Positioned(
+                    right: -3,
+                    top: -3,
+                    child: _StitchBadge(state: marker.stitch),
+                  ),
+              ],
             ),
-            const _Pointer(color: AppColors.primary),
+            _Pointer(color: body),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The small mark on a sphere capture's pin saying where its panorama is.
+class _StitchBadge extends StatelessWidget {
+  const _StitchBadge({required this.state});
+
+  final SphereStitchState state;
+
+  static const double _size = 14;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color background, Widget child) = switch (state) {
+      SphereStitchState.stitching => (
+          AppColors.captureActive,
+          const Padding(
+            padding: EdgeInsets.all(3),
+            child: CircularProgressIndicator(
+              strokeWidth: 1.6,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.onPrimary),
+            ),
+          ),
+        ),
+      SphereStitchState.ready => (
+          AppColors.success,
+          const Icon(Icons.threesixty, size: 10, color: AppColors.onPrimary),
+        ),
+      SphereStitchState.failed => (
+          AppColors.warning,
+          const Icon(
+            Icons.priority_high,
+            size: 10,
+            color: AppColors.onPrimary,
+          ),
+        ),
+      SphereStitchState.none => (AppColors.primary, const SizedBox.shrink()),
+    };
+
+    return Container(
+      height: _size,
+      width: _size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.surface, width: 1.5),
+      ),
+      child: child,
     );
   }
 }
@@ -230,11 +306,11 @@ class ProvisionalPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
+    return const IgnorePointer(
       child: SizedBox(
         height: PinMetrics.hitArea,
         width: PinMetrics.hitArea,
-        child: CustomPaint(painter: const _CrosshairPainter()),
+        child: CustomPaint(painter: _CrosshairPainter()),
       ),
     );
   }
@@ -286,21 +362,31 @@ class _PinTapTarget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The pin is drawn *over* the ink rather than inside it. The Material
+    // clips to its circle so the ripple stays round, and a pin is not round —
+    // a capture pin's pointer hangs below it and its stitch badge sits proud of
+    // the top-right corner, both of which the clip would cut off. Painting the
+    // child on top keeps the round ripple and the whole pin.
     return Semantics(
       label: semanticLabel,
       button: onTap != null,
       child: SizedBox(
         height: PinMetrics.hitArea,
         width: PinMetrics.hitArea,
-        child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            customBorder: const CircleBorder(),
-            child: Center(child: child),
-          ),
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            Positioned.fill(
+              child: Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(onTap: onTap, customBorder: const CircleBorder()),
+              ),
+            ),
+            IgnorePointer(child: child),
+          ],
         ),
       ),
     );

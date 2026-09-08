@@ -199,6 +199,9 @@ class _RecordingPlanRepository implements PlanRepository {
   Future<void> saveCapture(String calibrationId, CaptureMarker capture) async {}
 
   @override
+  Future<void> updateCapture(String c, CaptureMarker capture) async {}
+
+  @override
   Future<void> saveTrajectory(String c, Trajectory t) async {}
 
   @override

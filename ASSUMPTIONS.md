@@ -11,7 +11,8 @@ if a screen behaves in a way the PDF does not show, it is listed below.
 `LOW` can be deferred safely.
 
 **Status** — `OPEN` awaiting an answer from Asite · `ASSUMED` decided and implemented ·
-`DEFERRED` not needed until a later phase.
+`DEFERRED` not needed until a later phase · `RESOLVED` the assumption is gone, because the
+real thing arrived and settled it.
 
 ---
 
@@ -348,15 +349,18 @@ begins".
 **Assumed:** required, 64 characters maximum, and letters/digits/`_`/`-`/`.` only — the minimum
 that keeps the upload queue readable, which is the stated reason for naming up front.
 
-### G4 · Mobile Capture: three of four steps undrawn, and no sensor — `MED` · `ASSUMED`
-Four step dots are drawn but only "Sweep up — floor to ceiling" is shown.
+### G4 · Mobile Capture: three of four steps undrawn, and no sensor — `MED` · `RESOLVED` (Phase 7)
+Four step dots were drawn but only "Sweep up — floor to ceiling" was shown, and Phase 3 assumed
+four fixed steps advancing on a timer.
 
-**Assumed:** four fixed steps — sweep up, sweep down, rotate left, rotate right — each with a
-directional arrow in the reticle.
+**Superseded, and the assumption was wrong in kind rather than in detail.** The capture is not
+a sequence of four sweeps. `sphere_view` derives a shot plan from the camera's *measured*
+intrinsics — typically 29 positions across staggered rings, plus zenith and nadir — and proves
+it covers the sphere before the camera opens. Progress is "position 7 of 29", not "step 2 of 4",
+and each shutter is gated on aim, steadiness and dwell rather than on elapsed time.
 
-**Mock:** there is no depth sensor or camera behind this. Progress runs on a timer in
-`CaptureFlowController._startSweep`, so the screen can be walked end to end. A real sweep
-advances on what the phone actually sees.
+Nothing about the deck's four dots survives, and nothing should: they described a UI for a
+capture that was never specified, and the real one reports what it is actually doing.
 
 ### G5 · Storage warning threshold — `LOW` · `ASSUMED`
 "Storage warnings surface here, before the card fills" — no threshold given.
@@ -371,14 +375,24 @@ and sits beside Stop Walking.
 **Assumed:** Discard raises a confirm dialog naming what is lost. Android Back during a
 recording routes to the same dialog rather than silently abandoning the walk.
 
-### G7 · The LiDAR gate has no capability test and no drawn message — `MED` · `ASSUMED`
-"Gated on device capability, with a clear message when unsupported" — the message is never drawn
-and no test is named.
+### G7 · The LiDAR gate has no capability test and no drawn message — `MED` · `RESOLVED` (Phase 7)
+"Gated on device capability, with a clear message when unsupported" — the message was never
+drawn and no test was named.
 
-**Assumed:** an unsupported-device screen that says what is missing and points at the 360°
-camera instead. Nothing queries the device — `mobileCaptureSupportedProvider` now reads the demo
-console's switch, so the unsupported screen is reachable in a running app rather than only by
-overriding a provider at startup.
+**The device is queried now, and LiDAR is not what it is queried for.** The deck's word was a
+guess at the technology; the real requirements are a **gyroscope**, **≥3 GB of RAM** and an
+**arm64** ABI. `sphereCaptureGateProvider` runs the package's probe at the dock — motion
+capabilities, camera descriptors and total RAM, with no camera opened, so it is cheap enough to
+run before the button is offered.
+
+Four refusals, each with its own sentence: no gyroscope (there is no reduced mode — without one
+every frame would be seeded from tilt with no heading, so the panorama would be wrong rather
+than worse), no native library for this ABI (capture would work perfectly and produce nothing),
+no hardware bracket (offered, with a warning: one exposure cannot hold the 12–16 EV of a site
+interior with a window), no lens calibration (offered; joins are slightly less exact).
+
+The demo console's switch remains, layered over the real answer, because the refusals are
+otherwise unreachable without a second tablet.
 
 ### G8 · The waypoint bar has no confirm drawn — `LOW` · `ASSUMED`
 Screen 09 draws a single full-width "Back to recording — no waypoint", because it draws the
@@ -410,10 +424,21 @@ is not invented. Needs an answer.
 Real sizes come from the camera. `_estimateSize` scales from the figures the deck's own upload
 queue shows: ~36 MB per minute of 360° video, 28 MB per still, 46 MB per mobile sphere.
 
-### G12 · Saved captures are lost on restart — `MED` · `DEFERRED` (§B8)
-`MockPlanRepository` keeps locally saved captures and trajectories in memory, so a capture
-appears on the plan immediately but does not survive an app restart. Persistence is still
-deferred.
+### G12 · Saved captures are lost on restart — `MED` · `PARTLY RESOLVED` (Phase 7)
+`MockPlanRepository` keeps locally saved captures, issues and trajectories in memory, so they
+appear on the plan immediately but do not survive a restart. That is still true of everything
+the mock owns, and §B8 still defers it.
+
+**Sphere captures are the exception, and had to be.** They point at panoramas that are real
+files on the device. Losing the marker would leave a few hundred megabytes of JPEG with nothing
+referring to it — worse than either keeping it or never taking it. `SphereCaptureStore` writes
+them to one JSON file under the application support directory and
+`MockPlanRepository.fetchWorkspace` merges them ahead of its seeds, exactly as it already merges
+the in-memory captures. When the Asite bundle format lands and the plan itself persists, this is
+absorbed by whatever does that.
+
+Not `drift` or `isar` (rule 9): this is a list of markers, and a schema engine would be a build
+step and a migration story for four lines of `jsonEncode`.
 
 ---
 
@@ -559,6 +584,126 @@ frames exist yet.
 If the plan source becomes `RasterPlanSource` (decision D3) before a real model exists, the 3D
 view has no geometry and draws floor only. That is a real consequence of D3 worth knowing
 about: the two decisions interact, and resolving §B7 resolves it.
+
+---
+
+## J. Phase 7 — the real 360° capture
+
+Mobile Capture stopped being a mock. `sphere_view` is vendored at `packages/sphere_view` and
+its `docs/INTEGRATION.md` is the contract this app implements. The decisions below are ours,
+not the package's, and none of them is drawn in the deck — the deck never contemplated a real
+capture.
+
+### J1 · The panorama's heading is written as absent — `HIGH` · `ASSUMED`
+A panorama carries a compass bearing in its XMP GPano block, and it is the field that decides
+which way it opens. The package's pose sources are deliberately magnetometer-free — indoors,
+rebar, steel studs and lift motors bend magnetic heading by tens of degrees — so yaw 0 is
+wherever the capture started, and turning that into a bearing needs something outside the
+sensor stack.
+
+On a real site walk that something is the plan: the manager drew the path on a drawing whose
+north is surveyed, so the facing direction at a station is the tangent of the drawn path, good
+to a degree or two. `MockPlanGeometry` has no north and no drawn path.
+
+**Assumed: write nothing.** `session.setPlanHeading` is not called, and the package writes an
+unknown heading as *absent* rather than as zero — zero is a real bearing, due north, so a file
+claiming it for "we do not know" is indistinguishable from one surveyed facing north and every
+viewer opens it confidently in the wrong direction.
+
+**Cost to change:** one call, once the plan carries north. Not calling
+`setMagnetometerHeading` either is deliberate: a plan heading displaces a magnetometer heading
+and never the reverse, because a fresher reading from a worse instrument is still a worse
+answer.
+
+### J2 · The device floor is narrower than the app's — `HIGH` · `ASSUMED`
+Every other screen runs anywhere. Mobile Capture needs a **gyroscope**, **≥3 GB of RAM** and an
+**arm64** ABI, and no emulator qualifies.
+
+**Assumed:** this is acceptable rather than a defect, and the app says so at the entry point
+instead of failing later (§G7). The alternative — a reduced mode without a gyroscope — was
+rejected by the package on the grounds that the output would be wrong rather than worse.
+
+**Open with Asite:** whether the deployed fleet meets it. The rugged tablets named in the
+package's own device matrix do; nothing here has been run on Asite's actual hardware.
+
+### J3 · The stitch runs behind the crew, and the pin appears first — `MED` · `ASSUMED`
+The deck draws a capture completing and a pin appearing. It draws no waiting, because it never
+had a minute of stitching to account for.
+
+**Assumed:** the pin is written the moment the capture is saved, in a `stitching` state with a
+badge, and the panorama attaches to it up to a minute later. Progress shows in a dismissible
+card over the plan, in the register of the camera-lost card — the plan stays pannable and a
+second capture can start immediately. A modal would be the honest alternative and is the wrong
+one: thirty stations at a minute each is half an hour of a crew standing still.
+
+A 2048 px preview lands within seconds and the pin points at it, so "ready" is true long before
+the full-resolution pass finishes.
+
+### J4 · Bad captures are kept, good ones are thrown away — `MED` · `ASSUMED`
+The package's own storage policy, adopted as-is. A capture bundle is a few hundred megabytes;
+keeping every one fills a tablet inside a week. So a bundle is deleted **when its stitch met
+its quality targets**, and kept when it did not — a bundle is a self-describing directory that
+a better pipeline can re-stitch later, offline, from the office, without anybody returning to
+site. A site visit costs more than every tablet in the fleet's storage put together.
+
+**Consequence worth stating:** a failed capture takes up more room than a successful one. That
+is the intended direction.
+
+### J5 · The upload queue gets a real size, and gets it late — `LOW` · `ASSUMED`
+Every other mode estimates its bytes at capture time (§G11). A sphere cannot: the number is the
+length of a file that does not exist yet.
+
+**Assumed:** a sphere capture is enqueued for upload when its stitch lands, with the panorama's
+actual length. A capture whose stitch fails is never enqueued, which is correct — there is
+nothing to upload.
+
+### J6 · iOS is not built — `LOW` · `ASSUMED`
+The package supports iOS and ships a Swift plugin, but its prebuilt `sphere_stitch.xcframework`
+is 53 MB of static archive and this project targets Android only. It is not vendored.
+
+**Assumed:** Android only, and reversible in one command —
+`tools/build_native_mobile.sh --ios` regenerates it. `packages/sphere_view/ios/README.md` says
+so at the top so nobody looks for a missing file.
+
+### J7 · Leaving a capture early offers three answers, not two — `MED` · `ASSUMED`
+The deck draws a capture that completes. It draws nothing for a crew that has
+photographed the wall they came for and wants to stop.
+
+**Assumed:** Back during a capture asks, and offers **Keep capturing / Finish here /
+Discard**. "Finish here" keeps every frame on disk and stitches them — the package's
+`finish()` is deliberately total ("a partial capture is not an error and is never treated as
+one"), the pipeline fills the uncovered poles, and the review screen states the achieved
+coverage before a minute of stitching is spent on it.
+
+This is the same offer the package's own exit button makes, in the same words, reached from
+the system Back button instead. Offering only Discard — which is what the first cut did — made
+throwing the morning away the only alternative to shooting the ceiling.
+
+With nothing yet photographed there is no question to ask, so it does not ask.
+
+### J8 · A finished card clears itself; a failed one does not — `LOW` · `ASSUMED`
+The stitch card over the plan is a notification, and the durable record is the pin.
+
+**Assumed:** a clean finish takes its card down after 8 seconds — thirty stations would
+otherwise leave thirty cards stacked over the plan. A **failure** stays until it is dismissed:
+it is the only place Retry is offered, and its bundle was deliberately kept (§J4), so clearing
+it silently would hide the one capture that needs a decision.
+
+### J9 · The viewer is drag-first, with gyro on a toggle — `MED` · `ASSUMED`
+The deck draws a 360° image being looked at and does not say how.
+
+**The two input modes cannot both be live.** `SphereViewer` writes the view's yaw and pitch
+from the pose stream on every sample at ~100 Hz, and its drag handler is explicitly gated on
+there being no pose subscription — so with gyro look on, a drag is overwritten before the
+finger lifts and the panorama simply does not respond to touch.
+
+**Assumed: drag by default, gyro behind a labelled toggle.** Drag is the one that always
+works — every device has a touchscreen, not every device has a usable gyroscope, and a
+panorama is often reviewed flat on a desk rather than held up on site. Gyro is better when
+pointing at something in the room, so it is one tap away rather than absent. If the package
+reports no usable gyroscope the toggle falls back to drag and says so.
+
+Pinch-zoom and double-tap-to-reset work in both modes.
 
 ---
 

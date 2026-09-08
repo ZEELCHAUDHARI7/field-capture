@@ -1,0 +1,34 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # Build output, gitignored. Scratch `dart run` probes get dropped in here
+    # while iterating on the harness, and linting generated/throwaway output
+    # would mean the exit criterion "analyze clean" could never be met for
+    # reasons that have nothing to do with the package.
+    - build/**
+
+  errors:
+    # Phase 13 §2 requires `dart doc` clean with every public member
+    # documented. As a warning it is advice; as an error it is the exit
+    # criterion, and `flutter analyze` is the thing that checks it.
+    public_member_api_docs: error
+
+linter:
+  rules:
+    # Every public member carries a doc comment. It applies to `lib/src/` as
+    # well as to the barrel, which is deliberate and is the cheaper of the two
+    # options: the alternative is a rule that only covers exported names, and
+    # then the day a `src/` type is exported — which Phase 13's audit does for
+    # `TextureLimit` — the export itself starts failing analysis for reasons
+    # unrelated to the change being made.
+    - public_member_api_docs
+
+# `comment_references` was tried here and is deliberately **not** on. It
+# resolves `[Foo]` against the *file's* scope, while `dart doc` — which is the
+# actual exit criterion, and is clean — resolves against the library's export
+# graph. Fourteen references disagree, and every one of them is a deliberate
+# layering decision: `camera_platform.dart` names `[PigeonCameraPlatform]` in
+# its own doc precisely because it must not import it. Turning the rule on
+# would mean either importing to satisfy a comment, or writing the type name
+# without the brackets so the link goes away. Both are worse than the rule.

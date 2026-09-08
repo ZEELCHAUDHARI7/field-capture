@@ -24,11 +24,11 @@ import '../../plan/models/trajectory.dart';
 ///
 ///   pinningStart ──confirm──▶  video  : recording
 ///                              image  : saving
-///                              mobile : mobileSweep
+///                              mobile : sphereCapture
 ///
 ///   recording ──requestWaypoint──▶ pinningWaypoint ──confirm/cancel──▶ recording
 ///   recording ──stopWalking──────▶ pinningEnd ──confirmEndPin──▶ saving ──▶ idle
-///   mobileSweep ──(sweep completes)──▶ saving ──▶ idle
+///   sphereCapture ──(bundle saved)──▶ saving ──▶ idle
 ///   any ──discard──▶ idle
 enum CapturePhase {
   idle,
@@ -48,8 +48,10 @@ enum CapturePhase {
   /// "Walk finished — tap the point where you stopped."
   pinningEnd,
 
-  /// The phone-native four-step guided sweep.
-  mobileSweep,
+  /// The real guided sphere capture, owned by `sphere_view`: coaching, then
+  /// the ~29-position guided capture, then its review screen. Nothing about the
+  /// progress of it is state here — the package's session reports it.
+  sphereCapture,
 
   /// A 360° still is framed and shot. The deck names Image on the dock but
   /// draws no shooting step for it — ASSUMPTIONS.md §G9.
@@ -81,8 +83,7 @@ class CaptureDraft {
     this.provisionalPin,
     this.startedAt,
     this.elapsed = Duration.zero,
-    this.mobileStep = 0,
-    this.mobileProgress = 0,
+    this.sphereSessionId,
   });
 
   final CaptureMode mode;
@@ -106,11 +107,14 @@ class CaptureDraft {
 
   final Duration elapsed;
 
-  /// 0-based index into the four sweep steps.
-  final int mobileStep;
-
-  /// 0.0–1.0 across the whole sphere.
-  final double mobileProgress;
+  /// The `sphere_view` session id, minted when the pin is confirmed.
+  ///
+  /// It is the draft's business rather than the capture screen's because it
+  /// names the bundle directory on disk, and a directory that outlives the
+  /// screen has to be identified by something that was decided before the
+  /// screen opened — that is what makes a capture the app was killed during
+  /// findable afterwards.
+  final String? sphereSessionId;
 
   /// The number the waypoint banner announces next.
   int get nextWaypointNumber => waypoints.length + 1;
@@ -163,8 +167,7 @@ class CaptureDraft {
     bool clearProvisionalPin = false,
     DateTime? startedAt,
     Duration? elapsed,
-    int? mobileStep,
-    double? mobileProgress,
+    String? sphereSessionId,
   }) {
     return CaptureDraft(
       mode: mode,
@@ -178,8 +181,7 @@ class CaptureDraft {
           clearProvisionalPin ? null : (provisionalPin ?? this.provisionalPin),
       startedAt: startedAt ?? this.startedAt,
       elapsed: elapsed ?? this.elapsed,
-      mobileStep: mobileStep ?? this.mobileStep,
-      mobileProgress: mobileProgress ?? this.mobileProgress,
+      sphereSessionId: sphereSessionId ?? this.sphereSessionId,
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/routing/routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/field_app_bar.dart';
 import '../../../core/widgets/instruction_banner.dart';
 import '../../../core/widgets/pill_toggle.dart';
@@ -13,9 +16,13 @@ import '../../../core/widgets/state_views.dart';
 import '../../../shared/camera/camera_controller.dart';
 import '../../../shared/camera/camera_session.dart';
 import '../../capture/models/capture_draft.dart';
+import '../../capture/models/stitch_job.dart';
 import '../../capture/state/capture_flow_controller.dart';
+import '../../capture/state/sphere_capability_controller.dart';
+import '../../capture/state/stitch_queue_controller.dart';
 import '../../capture/widgets/name_capture_sheet.dart';
 import '../../capture/widgets/pin_mode_action_bar.dart';
+import '../../capture/widgets/stitch_progress_card.dart';
 import '../../issues/models/issue_draft.dart';
 import '../../issues/state/issue_report_controller.dart';
 import '../../issues/widgets/issues_tab.dart';
@@ -82,8 +89,8 @@ class _LevelWorkspaceScreenState extends ConsumerState<LevelWorkspaceScreen> {
           _openNamingSheet(next.draft!);
         case CapturePhase.recording:
           context.push(Routes.captureWalk);
-        case CapturePhase.mobileSweep:
-          context.push(Routes.captureMobile);
+        case CapturePhase.sphereCapture:
+          context.push(Routes.captureSphere);
         case CapturePhase.shooting:
           context.push(Routes.captureImage);
         case CapturePhase.idle:
@@ -154,15 +161,28 @@ class _LevelWorkspaceScreenState extends ConsumerState<LevelWorkspaceScreen> {
 
   void _announceSaved(CaptureDraft? draft) {
     if (draft == null) return;
+
+    // A sphere is not on the upload queue yet and pointing at it would be a
+    // lie: the panorama does not exist, so neither does its size. It joins the
+    // queue when the stitch lands. Until then the card over the plan is where
+    // the truth is.
+    final bool stitching = draft.mode == CaptureMode.mobile;
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('${draft.name} saved — queued for upload'),
-          action: SnackBarAction(
-            label: 'Queue',
-            onPressed: () => context.push(Routes.uploads),
+          content: Text(
+            stitching
+                ? '${draft.name} saved — stitching in the background'
+                : '${draft.name} saved — queued for upload',
           ),
+          action: stitching
+              ? null
+              : SnackBarAction(
+                  label: 'Queue',
+                  onPressed: () => context.push(Routes.uploads),
+                ),
         ),
       );
   }
@@ -339,7 +359,8 @@ class _Body extends ConsumerWidget {
         ),
         CaptureDock(
           cameraConnected: camera.isConnected,
-          onSelect: (CaptureMode mode) => _beginCapture(ref, mode),
+          onSelect: (CaptureMode mode) =>
+              unawaited(_beginCapture(context, ref, mode)),
           onBlocked: (CaptureMode mode) => _refuseCapture(context, ref, mode),
         ),
       ],
@@ -348,7 +369,52 @@ class _Body extends ConsumerWidget {
 
   /// "Every capture is named before it starts." The dock opens the naming
   /// sheet; the flow controller drives everything after it.
-  void _beginCapture(WidgetRef ref, CaptureMode mode) {
+  ///
+  /// Mobile Capture is gated first. `docs/INTEGRATION.md` §5 is explicit that
+  /// the check belongs at the feature entry point rather than mid-flow:
+  /// discovering on site that a tablet cannot do this is acceptable,
+  /// discovering it after 25 captures is not. The probe opens no camera, so it
+  /// is cheap enough to run on the tap.
+  Future<void> _beginCapture(
+    BuildContext context,
+    WidgetRef ref,
+    CaptureMode mode,
+  ) async {
+    if (mode == CaptureMode.mobile) {
+      final SphereCaptureGate gate =
+          await ref.read(sphereCaptureGateProvider.future);
+      if (!context.mounted) return;
+
+      final String? blocked = gate.blockingReason;
+      if (blocked != null) {
+        _refuseSphereCapture(context, blocked);
+        return;
+      }
+
+      final String? denied = await ref.read(cameraPermissionProvider).ensure();
+      if (!context.mounted) return;
+      if (denied != null) {
+        _refuseSphereCapture(context, denied);
+        return;
+      }
+
+      // Available, but the device may not be able to do all of it. The
+      // warnings are already coded and already sentences; saying so now is how
+      // "this tablet has no HDR" stops being mistaken for "this app is broken"
+      // three weeks later.
+      final List<String> warnings = gate.warnings;
+      if (warnings.isNotEmpty) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(warnings.first),
+              duration: const Duration(seconds: 6),
+            ),
+          );
+      }
+    }
+
     ref.read(captureFlowProvider.notifier).beginNaming(
           mode: mode,
           calibrationId: workspace.calibrationId,
@@ -358,6 +424,15 @@ class _Body extends ConsumerWidget {
             for (final Trajectory t in workspace.trajectories) t.name,
           ],
         );
+  }
+
+  /// The same register as `_refuseCapture`: visible, and refuses politely.
+  void _refuseSphereCapture(BuildContext context, String reason) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(reason), duration: const Duration(seconds: 8)),
+      );
   }
 
   /// "Capture modes that need the camera stay visible but refuse politely."
@@ -449,8 +524,11 @@ class _PinModeBody extends ConsumerWidget {
             'Zoom in and tap the exact point where recording begins',
           CaptureMode.image =>
             'Zoom in and tap the point where the 360° image is taken',
+          // Where the operator will stand and pivot. Worth being exact about:
+          // the capture is a rotation about one point, and walking between
+          // shots is the parallax the pipeline cannot undo.
           CaptureMode.mobile =>
-            'Zoom in and tap the point where the sweep is taken',
+            'Zoom in and tap the exact point you will stand on',
         };
       case CapturePhase.pinningWaypoint:
         return 'Recording continues — tap your current position to drop '
@@ -476,7 +554,7 @@ class _PinModeBody extends ConsumerWidget {
           confirmLabel: switch (draft.mode) {
             CaptureMode.video => 'Start Walking',
             CaptureMode.image => 'Capture image',
-            CaptureMode.mobile => 'Start sweep',
+            CaptureMode.mobile => 'Start capture',
           },
           onConfirm: hasPin ? controller.confirmStartPin : null,
         );
@@ -565,6 +643,9 @@ class _CaptureTab extends ConsumerWidget {
     final bool showCameraHelp =
         camera is CameraDisconnected && !view.cameraHelpDismissed;
 
+    final List<StitchJob> stitchJobs =
+        ref.watch(activeStitchJobsProvider(calibrationId));
+
     return Stack(
       children: <Widget>[
         Positioned.fill(
@@ -579,7 +660,7 @@ class _CaptureTab extends ConsumerWidget {
             onIssueTap: (IssueMarker issue) =>
                 _showIssuePreview(context, issue),
             onCaptureTap: (CaptureMarker capture) =>
-                _showCapturePreview(context, capture),
+                _showCapturePreview(context, ref, capture),
           ),
         ),
 
@@ -657,8 +738,54 @@ class _CaptureTab extends ConsumerWidget {
               onDismiss: controller.dismissCameraHelp,
             ),
           ),
+
+        // The stitches still running, over the plan and not in front of it.
+        // Below the camera-lost card when both are up, because a camera that
+        // has dropped stops the next capture and a stitch in progress does not.
+        if (stitchJobs.isNotEmpty)
+          Positioned(
+            left: AppSizes.md,
+            right: AppSizes.md,
+            top: showCameraHelp ? 200 : 60,
+            child: Column(
+              children: <Widget>[
+                for (final StitchJob job in stitchJobs)
+                  Builder(
+                    builder: (BuildContext context) {
+                      final String? viewer = _viewerFor(job);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                        child: StitchProgressCard(
+                          job: job,
+                          onDismiss: () => ref
+                              .read(stitchJobsProvider.notifier)
+                              .dismiss(job.sessionId),
+                          onRetry: () => unawaited(
+                            ref
+                                .read(stitchJobsProvider.notifier)
+                                .retry(job.sessionId),
+                          ),
+                          onView: viewer == null
+                              ? null
+                              : () => context.push(viewer),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
       ],
     );
+  }
+
+  /// The route to a job's panorama, or null while there is nothing to open.
+  String? _viewerFor(StitchJob job) {
+    final CaptureMarker? marker = workspace.captures
+        .where((CaptureMarker c) => c.sphereSessionId == job.sessionId)
+        .firstOrNull;
+    if (marker == null || !marker.hasPanorama) return null;
+    return Routes.sphereViewerFor(workspace.calibrationId, marker.id);
   }
 
   void _levelNotDownloaded(BuildContext context, WorkspaceLevel level) {
@@ -690,13 +817,69 @@ class _CaptureTab extends ConsumerWidget {
       );
   }
 
-  void _showCapturePreview(BuildContext context, CaptureMarker capture) {
-    final String reference = workspace.document.grid.referenceFor(capture.at);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text('${capture.name} · grid $reference')),
-      );
+  /// A tapped capture pin.
+  ///
+  /// A real sphere opens in the 360° viewer. The rest still say their one line:
+  /// the seeded mock captures and the external-camera modes have no media
+  /// behind them, and inventing a viewer for them would be the app claiming
+  /// something it cannot show.
+  void _showCapturePreview(
+    BuildContext context,
+    WidgetRef ref,
+    CaptureMarker capture,
+  ) {
+    switch (capture.stitch) {
+      case SphereStitchState.ready:
+        context.push(
+          Routes.sphereViewerFor(workspace.calibrationId, capture.id),
+        );
+
+      case SphereStitchState.stitching:
+        final StitchJob? job = ref
+            .read(stitchJobsProvider)[capture.sphereSessionId ?? ''];
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                job == null
+                    ? '${capture.name} is still stitching.'
+                    : '${capture.name} — ${job.statusLine}, '
+                        '${Formatters.percent(job.fraction)}',
+              ),
+            ),
+          );
+
+      case SphereStitchState.failed:
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                '${capture.name} could not be stitched. '
+                '${capture.stitchError ?? ''}'.trim(),
+              ),
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(
+                  ref
+                      .read(stitchJobsProvider.notifier)
+                      .retry(capture.sphereSessionId ?? ''),
+                ),
+              ),
+            ),
+          );
+
+      case SphereStitchState.none:
+        final String reference =
+            workspace.document.grid.referenceFor(capture.at);
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text('${capture.name} · grid $reference')),
+          );
+    }
   }
 }
 

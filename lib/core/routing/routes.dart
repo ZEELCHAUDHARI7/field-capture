@@ -18,12 +18,23 @@ abstract final class Routes {
 
   // Phase 3 — capture.
   static const String captureWalk = '/capture/walk';
-  static const String captureMobile = '/capture/mobile';
   static const String captureImage = '/capture/image';
+
+  /// Phase 7 — the real guided sphere capture, replacing the mock sweep that
+  /// used to live at `/capture/mobile`. One route for coaching, capture and
+  /// review, because they are one activity and Back means the same thing in
+  /// all three of them.
+  static const String captureSphere = '/capture/sphere';
 
   // Phase 4 — sync and settings.
   static const String uploads = '/uploads';
   static const String settings = '/settings';
+
+  /// Phase 7 — a captured sphere, open in the 360° viewer. Nested under the
+  /// calibration because a panorama without the level it was taken on is as
+  /// meaningless as a pin without its plan.
+  static const String sphereViewer =
+      '/calibration/:calibrationId/sphere/:captureId';
 
   // Phase 5 — 3D perspective.
   static const String perspective = '/calibration/:calibrationId/3d';
@@ -49,4 +60,7 @@ abstract final class Routes {
 
   static String perspectiveWalkFor(String calibrationId, String trajectoryId) =>
       '/calibration/$calibrationId/3d/$trajectoryId';
+
+  static String sphereViewerFor(String calibrationId, String captureId) =>
+      '/calibration/$calibrationId/sphere/$captureId';
 }

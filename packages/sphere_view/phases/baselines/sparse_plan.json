@@ -1,0 +1,7 @@
+{
+  "profile": "sparse_plan",
+  "backend": "native",
+  "note": "Phase 06-09 audit: capture-frame roll now applied to IMU seeds (sv_geometry, right-multiplied Rz); low_texture emits an IMU-only panorama instead of refusing after capture; plan reordering from Phase 08 re-seeded the rig's per-position noise. Fusion-affected metrics get a documented 15% band until cv::MergeMertens determinism is fixed.",
+  "refused": true,
+  "metrics": {}
+}

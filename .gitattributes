@@ -24,6 +24,13 @@
 *.jar  binary
 *.keystore binary
 *.jks  binary
+*.a    binary
+*.so   binary
+
+# Shell scripts and the viewer's fragment shader are read by tools that will not
+# tolerate CRLF, whatever the checkout platform does.
+*.sh   text eol=lf
+*.frag text eol=lf
 
 # Generated — collapse it in diffs and hide it from language stats.
 pubspec.lock linguist-generated=true

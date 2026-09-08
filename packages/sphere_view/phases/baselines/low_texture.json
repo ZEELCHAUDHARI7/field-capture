@@ -1,0 +1,63 @@
+{
+  "profile": "low_texture",
+  "backend": "native",
+  "note": "Phase 06-09 audit: capture-frame roll now applied to IMU seeds (sv_geometry, right-multiplied Rz); low_texture emits an IMU-only panorama instead of refusing after capture; plan reordering from Phase 08 re-seeded the rig's per-position noise. Fusion-affected metrics get a documented 15% band until cv::MergeMertens determinism is fixed.",
+  "pass": false,
+  "metrics": {
+    "s1": {
+      "value": 22.100402610448928,
+      "pass": false,
+      "lower_is_better": true
+    },
+    "s2": {
+      "value": 16.39704643011708,
+      "pass": false,
+      "lower_is_better": true
+    },
+    "s3": {
+      "value": 2.8837412587412996,
+      "pass": false,
+      "lower_is_better": true
+    },
+    "s3_wrap": {
+      "value": 13.46499102333953,
+      "pass": false,
+      "lower_is_better": true
+    },
+    "s4": {
+      "value": 1.9233711771177195,
+      "pass": false,
+      "lower_is_better": true
+    },
+    "s5": {
+      "value": 1.0,
+      "pass": true,
+      "lower_is_better": false
+    },
+    "holes": {
+      "value": 0.0,
+      "pass": true,
+      "lower_is_better": true
+    },
+    "s6_ssim": {
+      "value": 0.8489775461349535,
+      "pass": false,
+      "lower_is_better": false
+    },
+    "s6_psnr": {
+      "value": 18.380090862156358,
+      "pass": false,
+      "lower_is_better": false
+    },
+    "tilt": {
+      "value": 0.3153703971113581,
+      "pass": false,
+      "lower_is_better": true
+    },
+    "rss": {
+      "value": 650.140625,
+      "pass": true,
+      "lower_is_better": true
+    }
+  }
+}

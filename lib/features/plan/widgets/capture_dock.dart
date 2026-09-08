@@ -64,7 +64,11 @@ class CaptureDock extends StatelessWidget {
                   mode: CaptureMode.mobile,
                   icon: Icons.language_outlined,
                   enabled: true,
-                  badge: 'LiDAR',
+                  // The deck said "LiDAR". The real capture is a
+                  // gyroscope-guided photographic sweep stitched with OpenCV
+                  // and touches no depth sensor, so the badge named a piece of
+                  // hardware the feature neither uses nor requires.
+                  badge: '360°',
                   onSelect: onSelect,
                   onBlocked: onBlocked,
                 ),

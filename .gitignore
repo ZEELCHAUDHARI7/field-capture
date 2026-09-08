@@ -27,6 +27,25 @@ ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
 ios/Pods/
 
+# Vendored sphere_view package.
+#
+# `build/` is not just build output here — it is also where the prebuilt OpenCV
+# static libraries live, which android/CMakeLists.txt links against. It is 213 MB
+# per ABI and is deliberately not committed. Regenerate it once with:
+#
+#     cd packages/sphere_view && tools/build_native_mobile.sh --android
+#
+# See BUILD.md §0C.
+packages/sphere_view/build/
+packages/sphere_view/.dart_tool/
+packages/sphere_view/android/.cxx/
+packages/sphere_view/android/local.properties
+packages/sphere_view/spikes/spike_a_opencv/work/
+packages/sphere_view/spikes/spike_a_opencv/out/
+packages/sphere_view/example/build/
+packages/sphere_view/example/.dart_tool/
+packages/sphere_view/example/android/.gradle/
+
 # OS
 .DS_Store
 Thumbs.db

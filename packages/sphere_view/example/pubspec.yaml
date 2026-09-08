@@ -1,0 +1,64 @@
+name: example
+description: >-
+  The sphere_view demo: capture a 360, queue the stitch in the background, view
+  the result, and read the report that says how good it is.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  sphere_view:
+    path: ../
+
+  cupertino_icons: ^1.0.8
+
+  # The demo owns where captures and panoramas live — bundles under
+  # `<documents>/sphere_view/bundles`, panoramas outside them so the storage
+  # policy in docs/INTEGRATION.md can delete a bundle without taking the
+  # panorama with it.
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Flow 5. The system share sheet is how an equirect reaches Google Photos,
+  # which is the only way to prove criterion S10 — that the XMP GPano block
+  # makes a third-party viewer open the file as a sphere rather than as a very
+  # wide photo.
+  share_plus: ^13.3.0
+
+  # The CAMERA permission is a runtime grant on Android 6+ and a usage-string
+  # prompt on iOS. The package deliberately does not ask for it — a package that
+  # pulls in a permission plugin forces that choice on every consuming app — so
+  # asking is the host app's job, and here that is the demo.
+  permission_handler: ^12.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Phase 06 §6 runs on real hardware — a grey card, an iPad and an Android
+  # tablet — because the numbers it asserts (AE lock to within 1% luminance,
+  # burst under 600 ms, clock offset stable to ±2 ms) do not exist off a device.
+  integration_test:
+    sdk: flutter
+
+  # Phase 07 §5's timestamp-alignment test decodes every frame it captures to
+  # locate a vertical edge to sub-pixel accuracy — the yaw the *optics* imply,
+  # against the yaw the pose claims. Test-only: the package itself does all its
+  # pixel work in native code.
+  image: ^4.2.0
+
+  # Phase 10 §6's device suite renders its own capture bundle with the Phase 02
+  # harness, so that measuring "does a stitch drop a frame" needs no captured
+  # panorama and no physical setup. The harness is `tools/harness`, reached by
+  # path, and these are what it imports.
+  vector_math: ^2.1.4
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

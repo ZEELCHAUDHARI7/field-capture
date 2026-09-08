@@ -52,6 +52,11 @@ void main() {
         tester,
         MinTapTarget(
           child: GestureDetector(
+            // Opaque, because an empty SizedBox is not hit-testable and a
+            // GestureDetector defers to its child by default. Without this the
+            // test measures the fixture rather than MinTapTarget: even a tap
+            // dead on the centre of the child registers nothing.
+            behavior: HitTestBehavior.opaque,
             onTap: () => taps++,
             child: const SizedBox(height: 20, width: 20),
           ),
