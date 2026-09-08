@@ -140,7 +140,8 @@ the mock and swapped by overriding one provider. No widget performs I/O and no s
 another feature's internals.
 
 **Dependencies:** `flutter_riverpod`, `go_router`. That is the whole list. `intl` was skipped —
-`core/utils/formatters.dart` covers Phase 1 with zero dependency.
+`core/utils/formatters.dart` covers Phase 1 with zero dependency. The only bundled asset is
+Inter, at the four static weights the type scale uses.
 
 ### The decision that shapes everything
 
@@ -251,9 +252,45 @@ wall you stand beside disappears.
 
 ## Next
 
-Phase 6 — QA and release: screen-by-screen comparison against the deck, Android back-navigation
-audit at every mode and sheet, the 48 px touch-target audit, responsive checks, signing
-configuration and a release APK.
+Phase 6 — QA and release. **Done:** Inter bundled (§A5), the 48 px touch-target audit, and the
+Android back-navigation audit at every mode and sheet. **Left:** screen-by-screen comparison
+against the deck on real hardware, responsive checks, signing configuration and a release APK.
+
+### The 48 px audit, and what it found
+
+The floor is stated in the deck — "touch targets never below 48px" — so it is a spec item.
+Thirty-six interactive elements were measured. Material's own controls were already compliant
+(`materialTapTargetSize: padded` is set in the theme), as were the map controls, level rail,
+plan pins and queue buttons, all built against `AppSizes.minTouchTarget` from the start.
+
+Six were not, and all six are chrome the deck deliberately draws small: the Today/All filter at
+36, the Coverage and 3D pills at 36, the camera chip at 38, the connectivity pill at about 31,
+and the workspace tabs at 46. Growing them to 48 would have broken the drawn design.
+
+`core/widgets/min_tap_target.dart` resolves that the way Material resolves it for `IconButton`:
+the child paints at its own size and the render object reports a larger one to hit testing, so
+the space around a control is tappable but never inked. It differs from Material's version in
+one respect — a touch in the margin resolves to the *nearest* point on the child rather than its
+centre, because a segmented control has several children in a row and centre would send every
+near-miss to the middle segment. `test/touch_target_test.dart` covers both.
+
+Two containers were capping their contents regardless of what the control asked for, and both
+are fixed: `AppSizes.statusStripHeight` was 44 and now tracks `minTouchTarget`, and the camera
+strip's growth is absorbed into the padding beneath it so the bar is exactly as tall as it was.
+
+### The back-navigation audit
+
+The capture flow makes navigation a side effect of the state machine rather than of a tap, and
+that held up: `PopScope` guards the recording screen, the Mobile Capture sweep and every pin
+mode on the Level Workspace, and both bottom sheets discard their draft in the caller when they
+are dismissed by the scrim or the back gesture rather than confirmed. Sign-in uses `go` so Back
+from Projects leaves the app instead of returning to the form, and level switching uses
+`replace` so Back does not walk through every level visited (§F8).
+
+One gap was found and closed: the 3D perspective view had no `PopScope`, so Back in Compare
+mode left the walk entirely. The deck is explicit that "Compare is a mode, not a separate
+screen — the viewpoint is preserved", so Back now leaves the mode first, the same rule the
+workspace applies to its pin modes.
 
 **Nothing in this project has been compiled.** `flutter analyze` is the first thing Phase 6
 should run.

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../state/workspace_controller.dart';
 
@@ -65,7 +66,7 @@ class _Tab extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 46,
+          height: AppSizes.minTouchTarget,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             border: Border(

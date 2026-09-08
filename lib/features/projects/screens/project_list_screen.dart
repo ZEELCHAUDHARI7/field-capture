@@ -45,7 +45,7 @@ class ProjectListScreen extends ConsumerWidget {
         bottom: const Align(
           alignment: Alignment.centerLeft,
           child: Padding(
-            padding: EdgeInsets.only(left: AppSizes.lg, bottom: AppSizes.md),
+            padding: EdgeInsets.only(left: AppSizes.lg),
             child: ConnectivityPill(),
           ),
         ),

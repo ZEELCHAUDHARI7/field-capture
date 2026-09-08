@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_sizes.dart';
 import '../theme/app_colors.dart';
+import 'min_tap_target.dart';
 
 /// The dark rounded pill used for Coverage, 3D and (from Phase 5) Compare.
 ///
@@ -35,32 +36,39 @@ class PillToggle extends StatelessWidget {
     final Color foreground =
         active ? AppColors.onChrome : AppColors.onSurface;
 
-    return Semantics(
-      button: true,
-      toggled: active,
-      child: Material(
-        color: background,
-        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-        child: InkWell(
-          onTap: onPressed,
+    return MinTapTarget.vertical(
+      child: Semantics(
+        button: true,
+        toggled: active,
+        child: Material(
+          color: background,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          child: Container(
-            height: 36,
-            constraints: const BoxConstraints(minWidth: AppSizes.minTouchTarget),
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(icon, size: 16, color: foreground),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: foreground, fontWeight: FontWeight.w600),
-                ),
-              ],
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            child: Container(
+              height: 36,
+              constraints: const BoxConstraints(
+                minWidth: AppSizes.minTouchTarget,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(icon, size: 16, color: foreground),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium
+                        ?.copyWith(
+                          color: foreground,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

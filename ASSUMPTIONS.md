@@ -50,13 +50,15 @@ No dark variant is drawn, and the product's stated design constraint is sunlight
 Not addressed in the deck. System text scale is clamped to 0.9–1.3 so large-text accessibility
 settings do not break the dense capture chrome. Revisit against the stated glove-mode audit.
 
-### A5 · Fonts not bundled — `MED` · `OPEN`
-The prototype is set in Inter. The build environment has no network access, so the Inter TTFs
-could not be fetched. The app currently falls back to Roboto, which is metrically close but
-visibly different.
+### A5 · Fonts not bundled — `MED` · `RESOLVED`
+The prototype is set in Inter, and the app fell back to Roboto — metrically close but visibly
+different on every screen.
 
-**Fix:** drop the four Inter static TTFs into `assets/fonts/`, uncomment the `fonts:` block in
-`pubspec.yaml`, and set `AppTypography.sansFamily = 'Inter'`. One constant, whole app.
+**Resolved:** the four static weights the type scale uses (400/500/600/700) are bundled from
+[rsms/inter](https://github.com/rsms/inter) v4.1 in `assets/fonts/`, declared in `pubspec.yaml`,
+and selected by `AppTypography.sansFamily`. One constant, whole app. The monospace face is still
+the platform's own `monospace` — Android resolves it without bundling, and the prototype only
+uses it for identifiers.
 
 ### A6 · Permission flows absent — `MED` · `DEFERRED` (Phase 3)
 Camera, microphone, LiDAR/depth, location, nearby Wi-Fi and storage all need Android runtime

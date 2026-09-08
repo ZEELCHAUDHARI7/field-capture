@@ -5,6 +5,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/connectivity_pill.dart';
+import '../../../core/widgets/min_tap_target.dart';
 import '../../../shared/camera/camera_controller.dart';
 import '../../../shared/camera/camera_session.dart';
 
@@ -24,12 +25,11 @@ class CameraStatusBar extends ConsumerWidget {
     return ColoredBox(
       color: AppColors.chrome,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSizes.lg,
-          0,
-          AppSizes.md,
-          AppSizes.md,
-        ),
+        // The chip's hit area is grown to the 48px floor, which is 10px more
+        // than it draws. That growth is taken out of the padding below it, so
+        // the strip is exactly as tall as it was and the extra height is
+        // tappable rather than dead space.
+        padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.md, 2),
         child: Row(
           children: <Widget>[
             Expanded(child: _CameraChip(session: session)),
@@ -79,55 +79,60 @@ class _CameraChip extends ConsumerWidget {
         ),
     };
 
-    return Semantics(
-      button: !session.isConnected,
-      label: session is CameraDisconnected
-          ? '360 camera offline. Tap to reconnect.'
-          : label,
-      child: Material(
-        color: background,
-        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-        child: InkWell(
+    return MinTapTarget.vertical(
+      child: Semantics(
+        button: !session.isConnected,
+        label: session is CameraDisconnected
+            ? '360 camera offline. Tap to reconnect.'
+            : label,
+        child: Material(
+          color: background,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          onTap: session is CameraDisconnected ? controller.reconnect : null,
-          // QA hook: long-press drops the camera so the lost state is
-          // reachable without unplugging hardware. Removed with the mock.
-          onLongPress: controller.simulateToggle,
-          child: Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Container(
-                  height: 8,
-                  width: 8,
-                  decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: AppSizes.sm),
-                const Icon(
-                  Icons.adjust,
-                  size: 15,
-                  color: AppColors.onChrome,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: mono
-                        ? AppTypography.mono.copyWith(
-                            fontSize: 12,
-                            color: AppColors.onChrome,
-                          )
-                        : Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: AppColors.onChrome,
-                              fontWeight: FontWeight.w600,
-                            ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            onTap: session is CameraDisconnected ? controller.reconnect : null,
+            // QA hook: long-press drops the camera so the lost state is
+            // reachable without unplugging hardware. Removed with the mock.
+            onLongPress: controller.simulateToggle,
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    height: 8,
+                    width: 8,
+                    decoration: BoxDecoration(
+                      color: dot,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: AppSizes.sm),
+                  const Icon(
+                    Icons.adjust,
+                    size: 15,
+                    color: AppColors.onChrome,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: mono
+                          ? AppTypography.mono.copyWith(
+                              fontSize: 12,
+                              color: AppColors.onChrome,
+                            )
+                          : Theme.of(context).textTheme.labelMedium?.copyWith(
+                                color: AppColors.onChrome,
+                                fontWeight: FontWeight.w600,
+                              ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

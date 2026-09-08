@@ -8,13 +8,13 @@ import 'app_colors.dart';
 /// for identifiers: capture names, project codes, firmware versions and grid
 /// references.
 ///
-/// [sansFamily] is null today, so Flutter falls back to Roboto. Bundle the
-/// Inter TTFs (see the commented fonts block in pubspec.yaml) and set
-/// [sansFamily] to 'Inter' to match the prototype exactly. That one change
-/// propagates through the whole app — no screen references a font directly.
+/// Inter is bundled at four static weights (400/500/600/700) from rsms/inter
+/// v4.1, declared in pubspec.yaml. [sansFamily] selects it for every style
+/// below, so the family is set in exactly one place — no screen references a
+/// font directly. Set it back to null to fall through to the platform face.
 abstract final class AppTypography {
-  /// Set to 'Inter' once assets/fonts/Inter-*.ttf are bundled.
-  static const String? sansFamily = null;
+  /// Bundled — see the fonts block in pubspec.yaml.
+  static const String? sansFamily = 'Inter';
 
   /// Android resolves the generic 'monospace' family without bundling.
   static const String monoFamily = 'monospace';

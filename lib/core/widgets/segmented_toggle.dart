@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_sizes.dart';
 import '../theme/app_colors.dart';
+import 'min_tap_target.dart';
 
 /// A two-or-more-way segmented control on a white track.
 ///
@@ -23,23 +24,25 @@ class SegmentedToggle<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          for (final T value in values)
-            _Segment<T>(
-              label: labelOf(value),
-              isSelected: value == selected,
-              onTap: () => onChanged(value),
-            ),
-        ],
+    return MinTapTarget.vertical(
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (final T value in values)
+              _Segment<T>(
+                label: labelOf(value),
+                isSelected: value == selected,
+                onTap: () => onChanged(value),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -68,7 +71,9 @@ class _Segment<T> extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
           child: Container(
-            constraints: const BoxConstraints(minWidth: 46),
+            constraints: const BoxConstraints(
+              minWidth: AppSizes.minTouchTarget,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
             alignment: Alignment.center,
             child: Text(

@@ -53,5 +53,9 @@ abstract final class AppSizes {
 
   /// Height of the status strip (camera chip + connectivity pill) that sits
   /// under the app bar on capture screens.
-  static const double statusStripHeight = 44;
+  ///
+  /// Pinned to [minTouchTarget]: the strip hosts the connectivity pill, which
+  /// is tappable, and a strip shorter than the floor caps the pill's hit area
+  /// no matter what the pill itself asks for.
+  static const double statusStripHeight = minTouchTarget;
 }

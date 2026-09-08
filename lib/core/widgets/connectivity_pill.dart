@@ -5,6 +5,7 @@ import '../../shared/connectivity/connectivity_controller.dart';
 import '../../shared/connectivity/connectivity_status.dart';
 import '../constants/app_sizes.dart';
 import '../theme/app_colors.dart';
+import 'min_tap_target.dart';
 
 /// The connectivity pill that sits on dark chrome: a coloured dot plus a label.
 ///
@@ -30,32 +31,35 @@ class ConnectivityPill extends ConsumerWidget {
         ? (status.isOffline ? 'Offline' : 'Online')
         : status.label;
 
-    return Semantics(
-      label: 'Connection status: ${status.label}',
-      child: Material(
-        color: AppColors.chromeElevated,
-        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-        child: InkWell(
+    return MinTapTarget.vertical(
+      child: Semantics(
+        label: 'Connection status: ${status.label}',
+        child: Material(
+          color: AppColors.chromeElevated,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          onTap: () => ref.read(connectivityControllerProvider.notifier).cycle(),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSizes.md,
-              vertical: 7,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                _Dot(color: dotColor, pulsing: status.isSyncing),
-                const SizedBox(width: AppSizes.sm),
-                Text(
-                  label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: AppColors.onChrome),
-                ),
-              ],
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            onTap: () =>
+                ref.read(connectivityControllerProvider.notifier).cycle(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.md,
+                vertical: 7,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _Dot(color: dotColor, pulsing: status.isSyncing),
+                  const SizedBox(width: AppSizes.sm),
+                  Text(
+                    label,
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium
+                        ?.copyWith(color: AppColors.onChrome),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

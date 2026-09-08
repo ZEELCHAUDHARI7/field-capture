@@ -46,39 +46,56 @@ class PerspectiveWalkScreen extends ConsumerWidget {
     final AsyncValue<LevelWorkspaceData> data =
         ref.watch(workspaceDataProvider(calibrationId));
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Scaffold(
-        backgroundColor: AppColors.chrome,
-        body: data.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.captureActive),
-          ),
-          error: (Object error, StackTrace _) => Padding(
-            padding: const EdgeInsets.all(AppSizes.screenPadding),
-            child: ErrorStateView(
-              title: 'Could not open this level',
-              message: 'The calibration bundle could not be read.',
-              onRetry: () => ref
-                  .read(workspaceDataProvider(calibrationId).notifier)
-                  .refresh(),
+    // "Compare is a mode, not a separate screen — the viewpoint is preserved."
+    // So Back leaves the mode before it leaves the walk, the same rule the
+    // Level Workspace applies to its pin modes.
+    final bool comparing = ref.watch(
+      perspectiveProvider(trajectoryId)
+          .select((PerspectiveState state) => state.compare),
+    );
+
+    return PopScope(
+      canPop: !comparing,
+      onPopInvokedWithResult: (bool didPop, Object? _) {
+        if (didPop) return;
+        ref.read(perspectiveProvider(trajectoryId).notifier).toggleCompare();
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: AppColors.chrome,
+          body: data.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.captureActive),
             ),
-          ),
-          data: (LevelWorkspaceData workspace) {
-            Trajectory? trajectory;
-            for (final Trajectory candidate in workspace.trajectories) {
-              if (candidate.id == trajectoryId) {
-                trajectory = candidate;
-                break;
+            error: (Object error, StackTrace _) => Padding(
+              padding: const EdgeInsets.all(AppSizes.screenPadding),
+              child: ErrorStateView(
+                title: 'Could not open this level',
+                message: 'The calibration bundle could not be read.',
+                onRetry: () => ref
+                    .read(workspaceDataProvider(calibrationId).notifier)
+                    .refresh(),
+              ),
+            ),
+            data: (LevelWorkspaceData workspace) {
+              Trajectory? trajectory;
+              for (final Trajectory candidate in workspace.trajectories) {
+                if (candidate.id == trajectoryId) {
+                  trajectory = candidate;
+                  break;
+                }
               }
-            }
 
-            if (trajectory == null) {
-              return _MissingTrajectory(onBack: () => Navigator.of(context).pop());
-            }
+              if (trajectory == null) {
+                return _MissingTrajectory(
+                  onBack: () => Navigator.of(context).pop(),
+                );
+              }
 
-            return _Walk(workspace: workspace, trajectory: trajectory);
-          },
+              return _Walk(workspace: workspace, trajectory: trajectory);
+            },
+          ),
         ),
       ),
     );
