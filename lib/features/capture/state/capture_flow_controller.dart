@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/demo/demo_controls.dart';
 import '../../plan/data/plan_repository.dart';
 import '../../plan/models/plan_marker.dart';
 import '../../plan/models/plan_space.dart';
@@ -333,7 +334,12 @@ class CaptureFlowController extends Notifier<CaptureFlow> {
 /// message when unsupported", but never draws that message and names no
 /// capability test. Nothing here queries the device — override this provider
 /// to see the unsupported screen. ASSUMPTIONS.md §G7.
-final mobileCaptureSupportedProvider = Provider<bool>((ref) => true);
+final mobileCaptureSupportedProvider = Provider<bool>((ref) {
+  return ref.watch(
+    demoControlsProvider
+        .select((DemoControls demo) => demo.mobileCaptureSupported),
+  );
+});
 
 final captureFlowProvider =
     NotifierProvider<CaptureFlowController, CaptureFlow>(

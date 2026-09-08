@@ -29,6 +29,10 @@ abstract final class Routes {
   static const String perspectiveWalk =
       '/calibration/:calibrationId/3d/:trajectoryId';
 
+  /// Phase 6 — the demo console. Not a prototype screen: it exists to reach
+  /// states the deck never draws a way into. Removed with the mocks.
+  static const String demoControls = '/settings/demo';
+
   // ---------------------------------------------------------------------------
   // Path builders. Screens must use these rather than interpolating strings,
   // so a route rename is a single-file change.

@@ -6,6 +6,7 @@ import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/calibrations/screens/calibration_list_screen.dart';
 import '../../features/capture/screens/mobile_capture_screen.dart';
 import '../../features/capture/screens/recording_screen.dart';
+import '../../features/demo/screens/demo_controls_screen.dart';
 import '../../features/perspective/screens/perspective_walk_screen.dart';
 import '../../features/perspective/screens/trajectory_picker_screen.dart';
 import '../../features/plan/screens/level_workspace_screen.dart';
@@ -68,6 +69,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: Routes.settings,
         builder: (BuildContext context, GoRouterState state) =>
             const SettingsScreen(),
+      ),
+      GoRoute(
+        path: Routes.demoControls,
+        builder: (BuildContext context, GoRouterState state) =>
+            const DemoControlsScreen(),
       ),
       GoRoute(
         path: Routes.perspective,

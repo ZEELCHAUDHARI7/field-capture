@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/demo/demo_controls.dart';
 import '../models/plan_marker.dart';
 import '../models/plan_space.dart';
 import '../models/trajectory.dart';
@@ -242,5 +243,13 @@ class _LevelSeed {
   final bool offline;
 }
 
-final planRepositoryProvider =
-    Provider<PlanRepository>((ref) => MockPlanRepository());
+/// This one carries the session's saved captures, issues and walks in its own
+/// fields, so rebuilding it is how the demo panel's reset clears them. Nothing
+/// has to enumerate what to wipe, and nothing can drift as more state is added.
+final planRepositoryProvider = Provider<PlanRepository>((ref) {
+  final (bool fails, _) = ref.watch(
+    demoControlsProvider
+        .select((DemoControls demo) => (demo.planFails, demo.generation)),
+  );
+  return MockPlanRepository(simulateError: fails);
+});

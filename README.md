@@ -81,29 +81,43 @@ All ten routes were declared in `app_router.dart` on day one. The ones not yet b
 to a placeholder naming the phase that would deliver them, so no navigation path was ever a
 dead end and each phase only swapped a builder. As of Phase 5 there are no placeholders left.
 
-### Exercising the states
+### Exercising the states — the demo console
 
-The prototype draws no loading, empty or error states, so the mocks expose flags for them.
-Flip them in `main.dart` with a `ProviderScope` override:
+**Settings → Demo controls.**
 
-```dart
-runApp(
-  ProviderScope(
-    overrides: <Override>[
-      projectsRepositoryProvider.overrideWithValue(
-        MockProjectsRepository(simulateError: true),
-      ),
-    ],
-    child: const FieldCaptureApp(),
-  ),
-);
-```
+The app renders a good deal more than the deck draws: loading, empty and error states for every
+list, a failed bundle download, an unsupported-device message for Mobile Capture. None of it had
+a way in. The data faults were constructor arguments on the mocks, reachable only by editing
+`main.dart` and restarting; connectivity was a tap on the status pill and camera loss a
+*long-press* on the camera chip. Nothing there can be driven in front of an audience, so every
+hidden hook is now a labelled control on one screen:
 
-Tapping the connectivity pill cycles **Online → Online — syncing → Offline**, so every screen's
-connectivity treatment can be walked without a real network. **Long-pressing the camera chip**
-on the Level Workspace drops the 360° camera, which is how the camera-lost state, the help card
-and the disabled dock tiles are reached without unplugging hardware. Both hooks are removed when
-the real session and connectivity land.
+| Control | Reaches |
+|---|---|
+| Connectivity | Online · Online — syncing · Offline, on every screen that shows the pill |
+| 360° camera | Paired · Lost — the red chip, the help card, the refused dock tiles |
+| Project list | Loading · empty · error |
+| Calibration list | Loading · empty · error |
+| Plan fails to load | The Level Workspace error state |
+| Downloads drop at 62% | A part-downloaded bundle that offers to resume |
+| Mobile Capture supported | The unsupported-device message (§G7) |
+| Fail the active upload | The failed queue row, its reason and its retry countdown |
+| Reset all demo data | Back to the seed — see below |
+
+**How reset works, and why it needs no clear-down code.** Each mock holds the captures, issues
+and walks saved since launch in its own fields. `DemoControls.generation` is read by every
+repository provider, so bumping it constructs fresh mocks — and a fresh instance *is* the reset.
+Nothing has to enumerate what to discard, so nothing can drift as more state is added.
+
+**Why each repository selects its own slice.** Every repository reads the same `DemoControls`,
+so a plain `ref.watch` would rebuild all of them on any toggle — and flipping the project list
+would then quietly discard the walk just recorded on stage. Each one watches a `.select` of only
+its own fields. `test/demo_controls_test.dart` asserts that isolation, because it is invisible
+when broken.
+
+The console lives in `features/demo/` and its state in `shared/demo/`, both of which come out
+with the mocks. It is the one screen allowed to reach across features: being the console for all
+of them is the job.
 
 ---
 
@@ -255,6 +269,9 @@ wall you stand beside disappears.
 Phase 6 — QA and release. **Done:** Inter bundled (§A5), the 48 px touch-target audit, and the
 Android back-navigation audit at every mode and sheet. **Left:** screen-by-screen comparison
 against the deck on real hardware, responsive checks, signing configuration and a release APK.
+
+Phase 6 also added the demo console described under *Exercising the states*, which is what makes
+the states above reachable without a rebuild.
 
 ### The 48 px audit, and what it found
 

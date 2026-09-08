@@ -361,8 +361,9 @@ recording routes to the same dialog rather than silently abandoning the walk.
 and no test is named.
 
 **Assumed:** an unsupported-device screen that says what is missing and points at the 360°
-camera instead. Nothing queries the device: `mobileCaptureSupportedProvider` returns true, and
-overriding it in a `ProviderScope` shows the unsupported screen.
+camera instead. Nothing queries the device — `mobileCaptureSupportedProvider` now reads the demo
+console's switch, so the unsupported screen is reachable in a running app rather than only by
+overriding a provider at startup.
 
 ### G8 · The waypoint bar has no confirm drawn — `LOW` · `ASSUMED`
 Screen 09 draws a single full-width "Back to recording — no waypoint", because it draws the

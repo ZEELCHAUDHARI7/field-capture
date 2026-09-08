@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/demo/demo_controls.dart';
 import '../models/calibration.dart';
 
 /// The boundary a real Asite calibrations client will implement.
@@ -106,5 +107,19 @@ class MockCalibrationsRepository implements CalibrationsRepository {
   }
 }
 
+/// See the note on `projectsRepositoryProvider`. The download fault is read
+/// here too, so a bundle can be made to drop at 62% mid-demo.
 final calibrationsRepositoryProvider =
-    Provider<CalibrationsRepository>((ref) => MockCalibrationsRepository());
+    Provider<CalibrationsRepository>((ref) {
+  final (DataFault fault, bool downloadsFail, _) = ref.watch(
+    demoControlsProvider.select(
+      (DemoControls demo) =>
+          (demo.calibrations, demo.downloadsFail, demo.generation),
+    ),
+  );
+  return MockCalibrationsRepository(
+    simulateEmpty: fault == DataFault.empty,
+    simulateError: fault == DataFault.error,
+    simulateDownloadFailure: downloadsFail,
+  );
+});

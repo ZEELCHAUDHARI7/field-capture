@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -9,6 +10,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/chip_selector.dart';
 import '../../../core/widgets/field_app_bar.dart';
+import '../../../core/routing/routes.dart';
 import '../../../core/widgets/switch_tile.dart';
 import '../../../shared/camera/camera_controller.dart';
 import '../../../shared/camera/camera_session.dart';
@@ -110,6 +112,24 @@ class SettingsScreen extends ConsumerWidget {
             destructive: true,
             onChanged: (bool value) =>
                 _setAutoDelete(context, controller, value),
+          ),
+
+          const SizedBox(height: AppSizes.xxxl),
+          const _SectionLabel('Demo'),
+          AppButton(
+            label: 'Demo controls',
+            variant: AppButtonVariant.neutral,
+            icon: Icons.tune,
+            onPressed: () => context.push(Routes.demoControls),
+          ),
+          const SizedBox(height: AppSizes.sm),
+          Text(
+            'Connectivity, camera loss, data faults and the reset. Not part of '
+            'the product — it ships with the mocks and comes out with them.',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppColors.onSurfaceVariant),
           ),
         ],
       ),

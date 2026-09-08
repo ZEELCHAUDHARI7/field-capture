@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/demo/demo_controls.dart';
 import '../models/project.dart';
 
 /// The boundary a real Asite projects client will implement.
@@ -68,5 +69,16 @@ class MockProjectsRepository implements ProjectsRepository {
   }
 }
 
-final projectsRepositoryProvider =
-    Provider<ProjectsRepository>((ref) => MockProjectsRepository());
+/// Rebuilt whenever the demo panel changes this feature's fault or resets.
+/// That is what makes the empty and error states reachable in a running app:
+/// the controller already watches this provider, so a new mock refetches.
+final projectsRepositoryProvider = Provider<ProjectsRepository>((ref) {
+  final (DataFault fault, _) = ref.watch(
+    demoControlsProvider
+        .select((DemoControls demo) => (demo.projects, demo.generation)),
+  );
+  return MockProjectsRepository(
+    simulateEmpty: fault == DataFault.empty,
+    simulateError: fault == DataFault.error,
+  );
+});

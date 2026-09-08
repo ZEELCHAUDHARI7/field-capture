@@ -78,6 +78,27 @@ class UploadQueueController extends Notifier<List<UploadItem>> {
           ? i.copyWith(status: UploadStatus.uploading, clearFailure: true)
           : i);
 
+  /// Demo hook — drops whichever item is in flight, so the failed row with its
+  /// reason and retry countdown can be reached on demand instead of only from
+  /// the seed. Removed when real uploads land.
+  void simulateFailure() {
+    for (final UploadItem item in state) {
+      if (item.status == UploadStatus.uploading ||
+          item.status == UploadStatus.waiting) {
+        _patch(
+          item.id,
+          (UploadItem i) => i.copyWith(
+            status: UploadStatus.failed,
+            failureReason:
+                'Connection dropped at ${(i.progress * 100).round()}%',
+            retryInSeconds: 18,
+          ),
+        );
+        return;
+      }
+    }
+  }
+
   void _patch(String id, UploadItem Function(UploadItem) update) {
     state = <UploadItem>[
       for (final UploadItem item in state)
