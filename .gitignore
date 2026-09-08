@@ -49,3 +49,6 @@ packages/sphere_view/example/android/.gradle/
 # OS
 .DS_Store
 Thumbs.db
+
+# Golden-test failure artifacts, written by `flutter test` when a golden differs.
+**/test/failures/
